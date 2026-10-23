@@ -8,6 +8,7 @@
  * 支持多语言地区识别
  */
 export const REGION_KEYWORDS = {
+    中国: ['CN', 'CHN', '中国', '中国大陆', '内地', 'China'],
     香港: ['HK', 'HKG', 'HKT', '香港', 'Hong Kong', 'HongKong'],
     台湾: ['TW', 'TPE', '台湾', '台北', 'Taiwan', 'Taipei'],
     新加坡: ['SG', 'SIN', '新加坡', 'Singapore'],
@@ -471,7 +472,8 @@ export const REGION_EMOJI = {
     亚美尼亚: '🇦🇲',
     阿塞拜疆: '🇦🇿',
     比利时: '🇧🇪',
-    其他: '🌍',
+    中国: '🇨🇳',
+    其他: '🇨🇳',
 };
 
 function normalizeBase64(input) {
@@ -598,10 +600,10 @@ export function getRegionKeywords(region) {
 /**
  * [新增] 获取地区 Emoji
  * @param {string} region - 地区名称
- * @returns {string} 对应的 Emoji，如果未找到则返回空字符串
+ * @returns {string} 对应的 Emoji，未知地区默认显示中国国旗
  */
 export function getRegionEmoji(region) {
-    return REGION_EMOJI[region] || (region === '其他' || !region ? '🌍' : '');
+    return REGION_EMOJI[region] || '🇨🇳';
 }
 
 /**

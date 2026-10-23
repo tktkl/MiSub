@@ -18,6 +18,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': '/src',
+            'cloudflare:sockets': new URL('./tests/mocks/cloudflare-sockets.js', import.meta.url)
+                .pathname,
         },
     },
 });

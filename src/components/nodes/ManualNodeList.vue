@@ -1,7 +1,7 @@
 <script setup>
     import { computed } from 'vue';
+    import ManualNodeActions from './ManualNodeActions.vue';
     import { extractHostAndPort } from '../../lib/utils.js';
-    import { useToastStore } from '../../stores/toast.js';
     import { useI18n } from '@/i18n/index.js';
 
     const props = defineProps({
@@ -19,8 +19,14 @@
         isPinging: Boolean,
     });
 
-    const emit = defineEmits(['delete', 'edit', 'toggle-select', 'filter-group', 'ping']);
-    const { showToast } = useToastStore();
+    const emit = defineEmits([
+        'delete',
+        'edit',
+        'toggle-select',
+        'filter-group',
+        'ping',
+        'duplicate',
+    ]);
     const { t } = useI18n();
 
     const getProtocol = (url) => {
@@ -86,15 +92,6 @@
         };
         return styles[p] || styles['unknown'];
     });
-
-    const copyToClipboard = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            showToast(t('notices.copied'), 'success');
-        } catch {
-            showToast(t('notices.copyFailed'), 'error');
-        }
-    };
 </script>
 
 <template>
@@ -108,7 +105,7 @@
         @click="isSelectionMode ? emit('toggle-select') : null"
     >
         <!-- Mobile Layout -->
-        <div class="w-full sm:hidden">
+        <div class="w-full lg:hidden">
             <div class="flex items-start gap-3">
                 <div v-if="isSelectionMode" class="shrink-0 mt-0.5">
                     <div
@@ -144,7 +141,7 @@
                 </div>
 
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-start justify-between gap-2">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
                         <div class="flex items-center gap-2 flex-wrap min-w-0">
                             <div
                                 class="inline-block shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
@@ -162,94 +159,14 @@
                         </div>
 
                         <!-- Header Actions for Mobile -->
-                        <div v-if="!isSelectionMode" class="flex shrink-0 items-center gap-0.5">
-                            <button
-                                @click.stop="emit('ping')"
-                                class="rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-green-500/10 hover:text-green-500"
-                                :title="t('actions.ping')"
-                                :aria-label="t('actions.ping')"
-                                :disabled="isPinging"
-                                :class="{ 'animate-pulse text-green-500': isPinging }"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                                    />
-                                </svg>
-                            </button>
-                            <button
-                                @click.stop="copyToClipboard(node.url)"
-                                class="rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-primary-500/10 hover:text-primary-500"
-                                :title="t('actions.copyLink')"
-                                :aria-label="t('actions.copyLink')"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                    />
-                                </svg>
-                            </button>
-                            <button
-                                @click.stop="emit('edit')"
-                                class="rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-500/10 hover:text-gray-600 dark:hover:text-gray-200"
-                                :title="t('actions.edit')"
-                                :aria-label="t('actions.edit')"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"
-                                    />
-                                </svg>
-                            </button>
-                            <button
-                                @click.stop="emit('delete')"
-                                class="rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-500"
-                                :title="t('actions.delete')"
-                                :aria-label="t('actions.delete')"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
+                        <ManualNodeActions
+                            v-if="!isSelectionMode"
+                            :is-pinging="isPinging"
+                            @ping="emit('ping')"
+                            @duplicate="emit('duplicate')"
+                            @edit="emit('edit')"
+                            @delete="emit('delete')"
+                        />
                     </div>
 
                     <div class="flex flex-row items-center gap-2 mt-1">
@@ -261,6 +178,7 @@
                         </p>
                         <div
                             v-if="pingResult"
+                            :title="pingResult.message"
                             class="flex shrink-0 flex-row items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium"
                             :class="{
                                 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400':
@@ -300,7 +218,13 @@
                             }}</span
                             ><span v-else-if="pingResult.status === 'ok'"
                                 >{{ pingResult.latency }}ms</span
-                            ><span v-else>{{ t('manualNodes.unreachable') }}</span>
+                            ><span v-else>{{
+                                pingResult.code === 'probeSavedRequired'
+                                    ? t('manualNodes.probeSaveFirst')
+                                    : pingResult.code === 'probeUnsupported'
+                                      ? t('manualNodes.probeNotSupported')
+                                      : t('manualNodes.unreachable')
+                            }}</span>
                         </div>
                     </div>
 
@@ -313,11 +237,11 @@
 
         <!-- Desktop Layout -->
         <div
-            class="hidden w-full items-center gap-4 sm:grid"
+            class="hidden w-full items-center gap-4 lg:grid"
             :class="[
                 isSelectionMode
-                    ? 'grid-cols-[auto_auto_auto_auto_1fr_1fr_auto_auto]'
-                    : 'grid-cols-[auto_auto_auto_1fr_1fr_auto_auto]',
+                    ? 'grid-cols-[auto_auto_auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto_auto]'
+                    : 'grid-cols-[auto_auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto_auto]',
             ]"
         >
             <div v-if="isSelectionMode" class="shrink-0">
@@ -377,6 +301,7 @@
                 </p>
                 <div
                     v-if="pingResult"
+                    :title="pingResult.message"
                     class="flex shrink-0 flex-row items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium"
                     :class="{
                         'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400':
@@ -414,7 +339,13 @@
                         t('manualNodes.pinging')
                     }}</span
                     ><span v-else-if="pingResult.status === 'ok'">{{ pingResult.latency }}ms</span
-                    ><span v-else>{{ t('manualNodes.unreachable') }}</span>
+                    ><span v-else>{{
+                        pingResult.code === 'probeSavedRequired'
+                            ? t('manualNodes.probeSaveFirst')
+                            : pingResult.code === 'probeUnsupported'
+                              ? t('manualNodes.probeNotSupported')
+                              : t('manualNodes.unreachable')
+                    }}</span>
                 </div>
             </div>
 
@@ -433,97 +364,14 @@
                 </p>
             </div>
 
-            <div
+            <ManualNodeActions
                 v-if="!isSelectionMode"
-                class="shrink-0 flex items-center gap-1 opacity-100 transition-opacity duration-200 group-hover:opacity-100 lg:opacity-0"
-            >
-                <button
-                    @click.stop="emit('ping')"
-                    class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-green-500/10 hover:text-green-500 lg:min-h-0 lg:min-w-0"
-                    :title="t('actions.ping')"
-                    :aria-label="t('actions.ping')"
-                    :disabled="isPinging"
-                    :class="{ 'animate-pulse text-green-500': isPinging }"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                    </svg>
-                </button>
-                <button
-                    @click.stop="copyToClipboard(node.url)"
-                    class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-primary-500/10 hover:text-primary-500 lg:min-h-0 lg:min-w-0"
-                    :title="t('actions.copyLink')"
-                    :aria-label="t('actions.copyLink')"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                    </svg>
-                </button>
-                <button
-                    @click.stop="emit('edit')"
-                    class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-500/10 hover:text-gray-600 dark:hover:text-gray-200 lg:min-h-0 lg:min-w-0"
-                    :title="t('actions.edit')"
-                    :aria-label="t('actions.edit')"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"
-                        />
-                    </svg>
-                </button>
-                <button
-                    @click.stop="emit('delete')"
-                    class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-500 dark:text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-500 lg:min-h-0 lg:min-w-0"
-                    :title="t('actions.delete')"
-                    :aria-label="t('actions.delete')"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                    </svg>
-                </button>
-            </div>
+                :is-pinging="isPinging"
+                @ping="emit('ping')"
+                @duplicate="emit('duplicate')"
+                @edit="emit('edit')"
+                @delete="emit('delete')"
+            />
         </div>
     </div>
 </template>

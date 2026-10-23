@@ -358,10 +358,10 @@ MATCH,节点选择
 
         expect(Array.isArray(parsed.outbounds)).toBe(true);
         expect(parsed.outbounds.some((outbound) => outbound.tag === '🚀 节点选择')).toBe(true);
-        expect(parsed.outbounds.some((outbound) => outbound.tag === '🇭🇰 HK-01')).toBe(true);
+        expect(parsed.outbounds.some((outbound) => outbound.tag === 'HK-01')).toBe(true);
         expect(
             parsed.outbounds.some(
-                (outbound) => outbound.tag === '🇯🇵 JP-01' && outbound.type === 'vmess'
+                (outbound) => outbound.tag === 'JP-01' && outbound.type === 'vmess'
             )
         ).toBe(true);
         expect(Array.isArray(parsed.route.rule_set)).toBe(true);
@@ -428,7 +428,7 @@ MATCH,节点选择
         expect(quanxRendered).toContain('[filter_remote]');
         expect(quanxRendered).toContain('[filter_local]');
         expect(quanxRendered).toContain(
-            'vmess=1.2.3.6:443, method=none, password=uuid-5678, obfs=wss, obfs-uri=/ws, obfs-host=example.com, tag=🇺🇸 US-01'
+            'vmess=1.2.3.6:443, method=none, password=uuid-5678, obfs=wss, obfs-uri=/ws, obfs-host=example.com, tag=US-01'
         );
         expect(quanxRendered).not.toContain(
             'vmess=1.2.3.6:443, method=none, password=uuid-5678, obfs=ws,'
@@ -574,10 +574,10 @@ custom_proxy_group=TestGroup`,
 
         expect(quanxRendered).not.toContain('hysteria2=');
         expect(quanxRendered).toContain(
-            'tuic=5.45.102.158:39689, a276f4e4-08b4-4a03-bfe8-f36ef17ad133, a276f4e4-08b4-4a03-bfe8-f36ef17ad133, sni=www.bing.com, congestion-controller=bbr, udp-relay=native, alpn=h3, tls-verification=false, tag=🌍 TUIC-QX'
+            'tuic=5.45.102.158:39689, a276f4e4-08b4-4a03-bfe8-f36ef17ad133, a276f4e4-08b4-4a03-bfe8-f36ef17ad133, sni=www.bing.com, congestion-controller=bbr, udp-relay=native, alpn=h3, tls-verification=false, tag=TUIC-QX'
         );
         expect(quanxRendered).toContain(
-            'anytls=156.239.232.67:443, password=9d6c62f6-e38d-4146-ab3e-d40568555f89, over-tls=true, tls-verification=false, tls-host=xkhkfree.99887766.best, fast-open=false, udp-relay=true, tag=🌍 AnyTLS-QX'
+            'anytls=156.239.232.67:443, password=9d6c62f6-e38d-4146-ab3e-d40568555f89, over-tls=true, tls-verification=false, tls-host=xkhkfree.99887766.best, fast-open=false, udp-relay=true, tag=AnyTLS-QX'
         );
     });
 
@@ -597,13 +597,13 @@ custom_proxy_group=TestGroup`,
         );
 
         expect(quanxRendered).toContain(
-            'vless=tls.example.com:443, password=11111111-1111-4111-8111-111111111111, method=none, obfs=over-tls, obfs-host=tls.example.com, tag=🌍 VLESS-TLS'
+            'vless=tls.example.com:443, password=11111111-1111-4111-8111-111111111111, method=none, obfs=over-tls, obfs-host=tls.example.com, tag=VLESS-TLS'
         );
         expect(quanxRendered).toContain(
-            'vless=reality.example.com:443, password=22222222-2222-4222-8222-222222222222, method=none, obfs=over-tls, obfs-host=addons.mozilla.org, reality-base64-pubkey=testpublickey, reality-hex-shortid=abcdef, tag=🌍 VLESS-Reality'
+            'vless=reality.example.com:443, password=22222222-2222-4222-8222-222222222222, method=none, obfs=over-tls, obfs-host=addons.mozilla.org, reality-base64-pubkey=testpublickey, reality-hex-shortid=abcdef, tag=VLESS-Reality'
         );
         expect(quanxRendered).toContain(
-            'vless=vision.example.com:443, password=33333333-3333-4333-8333-333333333333, method=none, obfs=over-tls, obfs-host=vision.example.com, vless-flow=xtls-rprx-vision, tag=🌍 VLESS-Vision'
+            'vless=vision.example.com:443, password=33333333-3333-4333-8333-333333333333, method=none, obfs=over-tls, obfs-host=vision.example.com, vless-flow=xtls-rprx-vision, tag=VLESS-Vision'
         );
         expect(quanxRendered).not.toContain('over-tls=true');
         expect(quanxRendered).not.toContain('tls-host=vision.example.com');
@@ -634,9 +634,9 @@ custom_proxy_group=TestGroup`,
         const line = quanxRendered.split('\n').find((item) => item.startsWith('vmess='));
 
         expect(line).toBe(
-            'vmess=ip.sb:443, method=none, password=6f4e029b-099f-45f6-afd2-33f0e8f86f15, obfs=wss, obfs-uri=/vmess-argo?ed=2560, obfs-host=gbwarp.owg.dpdns.org, tag=🌍 VMESS 节点'
+            'vmess=ip.sb:443, method=none, password=6f4e029b-099f-45f6-afd2-33f0e8f86f15, obfs=wss, obfs-uri=/vmess-argo?ed=2560, obfs-host=gbwarp.owg.dpdns.org, tag=VMESS 节点'
         );
-        expect(line).not.toContain('tag=🌍 VMESS 节点, obfs=');
+        expect(line).not.toContain('tag=VMESS 节点, obfs=');
         expect(line).not.toContain('over-tls=true');
         expect(line).not.toContain('tls-host=');
     });

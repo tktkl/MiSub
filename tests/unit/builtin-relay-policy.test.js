@@ -39,7 +39,7 @@ describe('内置 Relay 分流等级', () => {
         expect(relayGroup?.type).toBe('select');
         expect(relayGroup?.proxies.some((name) => name.startsWith('🔗 链式代理 - '))).toBe(false);
         expect(relayGroup?.proxies).toEqual(
-            expect.arrayContaining(['入口节点', '🇭🇰 香港入口-HK-01', '🇺🇸 美国落地-US-01'])
+            expect.arrayContaining(['入口节点', '香港入口-HK-01', '美国落地-US-01'])
         );
         expect(parsed['proxy-groups'].some((group) => group.name === '落地节点')).toBe(false);
     });

@@ -58,6 +58,7 @@ import {
     handleCleanNodesRequest,
     handleHealthCheckRequest,
 } from './handlers/node-handler.js';
+import { handleNodeProbeRequest } from './handlers/node-probe-handler.js';
 import { handleClientRequest } from './handlers/client-handler.js';
 import { handleErrorReportRequest } from './handlers/error-report-handler.js';
 import {
@@ -458,6 +459,9 @@ export async function handleApiRequest(request, env, context = null) {
                 return createErrorResponse(`识别失败: ${error.message}`, 400);
             }
         }
+
+        case '/nodes/probe':
+            return await handleNodeProbeRequest(request, env);
 
         case '/nodes/health':
             return await handleHealthCheckRequest(request, env);

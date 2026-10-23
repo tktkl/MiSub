@@ -1,4 +1,5 @@
 <script setup>
+    import { getRegionEmoji as getMappedRegionEmoji } from '../../../../../functions/modules/utils/geo-utils.js';
     import { computed } from 'vue';
     import { useI18n } from '../../../../i18n/index.js';
     import draggable from 'vuedraggable';
@@ -88,7 +89,7 @@
     };
 
     const getRegionEmoji = (region) => {
-        if (!region) return '🌐';
+        if (!region) return '🇨🇳';
         const regionMap = {
             香港: '🇭🇰',
             台湾: '🇨🇳',
@@ -113,7 +114,7 @@
             菲律宾: '🇵🇭',
             土耳其: '🇹🇷',
         };
-        return regionMap[region] || '🌍';
+        return regionMap[region] || getMappedRegionEmoji(region);
     };
 
     const getTagsList = (item) => {

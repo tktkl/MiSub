@@ -939,10 +939,11 @@ export async function generateCombinedNodeList(
     // 3.1 YAML 兼容性净化
     currentLines = currentLines.map((line) => sanitizeNodeForYaml(line));
 
-    // 3.2 最终智能化补齐 (Flag Emoji)
-    const finalLines = shouldKeepEmoji
-        ? currentLines.map((line) => addFlagEmoji(line))
-        : currentLines;
+    // 默认仅在界面显示地区图标；只有显式的节点转换设置才给订阅名称补旗帜。
+    const finalLines =
+        shouldKeepEmoji && emojiExplicitlyEnabled
+            ? currentLines.map((line) => addFlagEmoji(line))
+            : currentLines;
 
     // --- 阶段 4: 结果拼装与返回 ---
     const finalNodeList = finalLines.join('\n');

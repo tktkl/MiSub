@@ -133,7 +133,7 @@ rules:
         expect(result.content).toContain('rule-providers:');
         expect(result.content).toContain('RULE-SET,AI,🚀 节点选择');
         expect(result.content).toContain('proxies:');
-        expect(result.content).toContain('name: 🇭🇰 HK-01');
+        expect(result.content).toContain('name: HK-01');
         expect(result.content).not.toContain('metadata:');
     });
 

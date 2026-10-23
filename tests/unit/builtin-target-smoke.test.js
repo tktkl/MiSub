@@ -96,7 +96,7 @@ describe('Builtin target smoke output', () => {
         expect(parsed.rules.length).toBeGreaterThan(0);
     });
 
-    it('honors addFlagEmoji=false across builtin targets including Egern', () => {
+    it.each([undefined, false])('keeps node names clean with addFlagEmoji=%s across builtin targets', (addFlagEmoji) => {
         const node = 'ss://YWVzLTEyOC1nY206cGFzc3dvcmQ=@1.2.3.4:443#HKNode';
         const targets = ['clash', 'surge&ver=4', 'loon', 'quanx', 'singbox', 'egern'];
 
@@ -104,7 +104,7 @@ describe('Builtin target smoke output', () => {
             const rendered = transformBuiltinSubscription(node, target, {
                 fileName: `Emoji ${target}`,
                 ruleLevel: 'std',
-                addFlagEmoji: false,
+                addFlagEmoji,
             });
 
             expect(rendered, target).toContain('HKNode');

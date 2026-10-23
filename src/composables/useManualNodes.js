@@ -4,8 +4,9 @@ import { storeToRefs } from 'pinia';
 import { useDataStore } from '../stores/useDataStore.js';
 import { useSettingsStore } from '../stores/settings.js';
 import { useToastStore } from '../stores/toast.js'; // Restored
-import { extractNodeName, extractHostAndPort } from '../lib/utils.js';
+import { extractNodeName } from '../lib/utils.js';
 import { pingNode } from '../utils/ping.js';
+import { generateNodeId } from '../utils/id.js';
 import { filterManualNodes, isManualNodeEntry } from './manual-nodes/filters.js';
 import { readRawPreference, writeRawPreference } from '../utils/local-preference.js';
 import { buildDedupPlan as buildDedupPlanCore } from './manual-nodes/dedup.js';
@@ -134,11 +135,24 @@ export function useManualNodes(markDirty) {
         markDirty();
     }
 
+    function duplicateNode(nodeId) {
+        const original = manualNodes.value.find((node) => node.id === nodeId);
+        if (!original) return;
+        // Store entries are Vue proxies; JSON cloning also detaches nested node metadata.
+        const copy = JSON.parse(JSON.stringify(original));
+        copy.id = generateNodeId();
+        copy.name = `${original.name || extractNodeName(original.url)} copy`;
+        addNode(copy);
+        showToast(t('manualNodes.duplicated'), 'success');
+    }
+
     function updateNode(updatedNode) {
         const normalizedNode = {
             ...updatedNode,
             group: normalizeManualNodeGroupName(updatedNode.group),
         };
+        const previous = manualNodes.value.find((node) => node.id === normalizedNode.id);
+        if (previous?.url !== normalizedNode.url) delete pingResults.value[normalizedNode.id];
         // Update in shared store
         dataStore.updateSubscription(normalizedNode.id, normalizedNode);
         markDirty();
@@ -373,23 +387,17 @@ export function useManualNodes(markDirty) {
         const node = manualNodes.value.find((n) => n.id === nodeId);
         if (!node) return;
 
-        const { host, port } = extractHostAndPort(node.url);
-        if (!host || !port) {
-            pingResults.value[nodeId] = {
-                status: 'error',
-                latency: -1,
-                message: t('manualNodes.parseAddressFailed'),
-            };
-            return;
-        }
-
+        const testedUrl = node.url;
         pingingNodes.value.add(nodeId);
         pingResults.value = { ...pingResults.value, [nodeId]: { status: 'loading', latency: 0 } };
 
         try {
-            // 由于 fetch ping 主要看 tcp 连通性，给个 3000ms 兜底即可
-            const result = await pingNode(host, port, 3000);
-            pingResults.value = { ...pingResults.value, [nodeId]: result };
+            const result = await pingNode(nodeId, testedUrl);
+            if (manualNodes.value.find((item) => item.id === nodeId)?.url === testedUrl) {
+                pingResults.value = { ...pingResults.value, [nodeId]: result };
+            } else {
+                delete pingResults.value[nodeId];
+            }
         } catch (e) {
             pingResults.value = {
                 ...pingResults.value,
@@ -438,6 +446,7 @@ export function useManualNodes(markDirty) {
         changeManualNodesPage,
         addNode,
         updateNode,
+        duplicateNode,
         deleteNode,
         deleteAllNodes,
         addNodesFromBulk,

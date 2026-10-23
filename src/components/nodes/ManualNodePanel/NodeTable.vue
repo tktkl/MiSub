@@ -39,6 +39,7 @@
         'update:itemsPerPage', // Added
         'set-group-filter', // Added
         'ping',
+        'duplicate',
     ]);
 
     const draggableModel = computed({
@@ -100,6 +101,7 @@
                                 @delete="emit('delete', node.id)"
                                 @filter-group="emit('set-group-filter', $event)"
                                 @ping="emit('ping', node.id)"
+                                @duplicate="emit('duplicate', node.id)"
                             />
                         </div>
                     </template>
@@ -127,6 +129,7 @@
                                 @delete="emit('delete', node.id)"
                                 @filter-group="emit('set-group-filter', $event)"
                                 @ping="emit('ping', node.id)"
+                                @duplicate="emit('duplicate', node.id)"
                             />
                         </div>
                     </template>
@@ -162,6 +165,7 @@
                         @delete="emit('delete', node.id)"
                         @filter-group="emit('set-group-filter', $event)"
                         @ping="emit('ping', node.id)"
+                        @duplicate="emit('duplicate', node.id)"
                     />
                 </div>
             </div>
@@ -182,6 +186,7 @@
                     @delete="emit('delete', node.id)"
                     @filter-group="emit('set-group-filter', $event)"
                     @ping="emit('ping', node.id)"
+                    @duplicate="emit('duplicate', node.id)"
                 />
             </div>
         </div>

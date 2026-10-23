@@ -49,14 +49,14 @@ describe('Quantumult X 内置生成器', () => {
         );
 
         expect(result).toContain(
-            'vmess=1.2.3.4:443, method=none, password=uuid-1234, obfs=wss, obfs-uri=/ws, obfs-host=example.com, tag=🌍 VmessNode'
+            'vmess=1.2.3.4:443, method=none, password=uuid-1234, obfs=wss, obfs-uri=/ws, obfs-host=example.com, tag=VmessNode'
         );
         expect(result).not.toContain(
             'vmess=1.2.3.4:443, method=none, password=uuid-1234, obfs=ws,'
         );
-        expect(result).not.toContain('over-tls=true, tag=🌍 VmessNode');
+        expect(result).not.toContain('over-tls=true, tag=VmessNode');
         expect(result).toContain(
-            'trojan=1.2.3.4:443, password=password, over-tls=true, tag=🌍 TrojanNode'
+            'trojan=1.2.3.4:443, password=password, over-tls=true, tag=TrojanNode'
         );
     });
 
@@ -66,7 +66,7 @@ describe('Quantumult X 内置生成器', () => {
         );
 
         expect(result).toContain(
-            'shadowsocks=1.2.3.4:443, method=aes-128-gcm, password=password, tag=🌍 SSNode'
+            'shadowsocks=1.2.3.4:443, method=aes-128-gcm, password=password, tag=SSNode'
         );
         expect(result).toContain('password');
     });
@@ -124,7 +124,7 @@ describe('Quantumult X 内置生成器', () => {
         expect(vmessDecoded.host).toBe('example.com');
         expect(vmessDecoded.path).toBe('/ws');
         expect(vmessDecoded.tls).toBe('true');
-        expect(ss.name).toBe('🌍 SS Node');
+        expect(ss.name).toBe('SS Node');
     });
 
     it('should skip unsupported hysteria2 lines for QuanX and keep tuic anytls lines', () => {
@@ -138,10 +138,10 @@ describe('Quantumult X 内置生成器', () => {
 
         expect(generated).not.toContain('hysteria2=');
         expect(generated).toContain(
-            'tuic=tuic.example.com:443, uuid-tuic, pass-tuic, sni=tuic.example.com, congestion-controller=bbr, udp-relay=native, alpn=h3, tls-verification=false, tag=🌍 TUICNode'
+            'tuic=tuic.example.com:443, uuid-tuic, pass-tuic, sni=tuic.example.com, congestion-controller=bbr, udp-relay=native, alpn=h3, tls-verification=false, tag=TUICNode'
         );
         expect(generated).toContain(
-            'anytls=anytls.example.com:443, password=pass-anytls, over-tls=true, tls-verification=false, tls-host=anytls.example.com, fast-open=false, udp-relay=true, tag=🌍 AnyTLSNode'
+            'anytls=anytls.example.com:443, password=pass-anytls, over-tls=true, tls-verification=false, tls-host=anytls.example.com, fast-open=false, udp-relay=true, tag=AnyTLSNode'
         );
 
         const parsed = parseQuantumultXConfig(generated);
@@ -211,9 +211,9 @@ describe('Quantumult X 内置生成器', () => {
         const line = generated.split('\n').find((item) => item.startsWith('vmess='));
 
         expect(line).toBe(
-            'vmess=ip.sb:443, method=none, password=6f4e029b-099f-45f6-afd2-33f0e8f86f15, obfs=wss, obfs-uri=/vmess-argo?ed=2560, obfs-host=gbwarp.owg.dpdns.org, tag=🌍 VMESS 节点'
+            'vmess=ip.sb:443, method=none, password=6f4e029b-099f-45f6-afd2-33f0e8f86f15, obfs=wss, obfs-uri=/vmess-argo?ed=2560, obfs-host=gbwarp.owg.dpdns.org, tag=VMESS 节点'
         );
-        expect(line).not.toContain('tag=🌍 VMESS 节点, obfs=');
+        expect(line).not.toContain('tag=VMESS 节点, obfs=');
         expect(line).not.toContain('over-tls=true');
         expect(line).not.toContain('tls-host=');
     });
@@ -225,7 +225,7 @@ describe('Quantumult X 内置生成器', () => {
         const line = generated.split('\n').find((item) => item.startsWith('shadowsocks='));
 
         expect(line).toBe(
-            'shadowsocks=79.137.195.150:444, method=aes-128-gcm, password=8b540f5c-62c1-4492-83f6-944f534ad026, obfs=wss, obfs-uri=/proxyip=proxyip.cmliussss.net?enc=aes-128-gcm, obfs-host=fofo.sinemp.nyc.mn, tag=🇩🇪 DE'
+            'shadowsocks=79.137.195.150:444, method=aes-128-gcm, password=8b540f5c-62c1-4492-83f6-944f534ad026, obfs=wss, obfs-uri=/proxyip=proxyip.cmliussss.net?enc=aes-128-gcm, obfs-host=fofo.sinemp.nyc.mn, tag=DE'
         );
         expect(line).not.toContain('obfs=ws,');
         expect(line).not.toContain('over-tls=true');
@@ -238,13 +238,13 @@ describe('Quantumult X 内置生成器', () => {
         const line = generated.split('\n').find((item) => item.startsWith('anytls='));
 
         expect(line).toBe(
-            'anytls=anytls.example.com:443, password=pass-anytls, over-tls=true, tls-verification=false, tls-host=anytls.example.com, fast-open=false, udp-relay=true, tag=🌍 AnyTLS-v1.6.0'
+            'anytls=anytls.example.com:443, password=pass-anytls, over-tls=true, tls-verification=false, tls-host=anytls.example.com, fast-open=false, udp-relay=true, tag=AnyTLS-v1.6.0'
         );
 
         const parsed = parseQuantumultXConfig(generated);
         const anytls = parsed.find((node) => node.protocol === 'anytls');
         expect(anytls?.url).toBe(
-            'anytls://pass-anytls@anytls.example.com:443?allowInsecure=1&sni=anytls.example.com#%F0%9F%8C%8D%20AnyTLS-v1.6.0'
+            'anytls://pass-anytls@anytls.example.com:443?allowInsecure=1&sni=anytls.example.com#AnyTLS-v1.6.0'
         );
     });
 
@@ -258,13 +258,13 @@ describe('Quantumult X 内置生成器', () => {
         );
 
         expect(generated).toContain(
-            'vless=tls.example.com:443, password=11111111-1111-4111-8111-111111111111, method=none, obfs=over-tls, obfs-host=tls.example.com, tag=🌍 VLESS-TLS'
+            'vless=tls.example.com:443, password=11111111-1111-4111-8111-111111111111, method=none, obfs=over-tls, obfs-host=tls.example.com, tag=VLESS-TLS'
         );
         expect(generated).toContain(
-            'vless=reality.example.com:443, password=22222222-2222-4222-8222-222222222222, method=none, obfs=over-tls, obfs-host=addons.mozilla.org, reality-base64-pubkey=testpublickey, reality-hex-shortid=abcdef, tag=🌍 VLESS-Reality'
+            'vless=reality.example.com:443, password=22222222-2222-4222-8222-222222222222, method=none, obfs=over-tls, obfs-host=addons.mozilla.org, reality-base64-pubkey=testpublickey, reality-hex-shortid=abcdef, tag=VLESS-Reality'
         );
         expect(generated).toContain(
-            'vless=vision.example.com:443, password=33333333-3333-4333-8333-333333333333, method=none, obfs=over-tls, obfs-host=vision.example.com, vless-flow=xtls-rprx-vision, tag=🌍 VLESS-Vision'
+            'vless=vision.example.com:443, password=33333333-3333-4333-8333-333333333333, method=none, obfs=over-tls, obfs-host=vision.example.com, vless-flow=xtls-rprx-vision, tag=VLESS-Vision'
         );
         expect(generated).not.toContain('over-tls=true');
         expect(generated).not.toContain('tls-host=vision.example.com');

@@ -1,4 +1,5 @@
 <script setup>
+    import { getRegionEmoji as getMappedRegionEmoji } from '../../../../functions/modules/utils/geo-utils.js';
     import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
     import { api, APIError } from '../../../lib/http.js';
     import { useToastStore } from '../../../stores/toast.js';
@@ -394,7 +395,7 @@
 
     // 获取地区 Emoji
     const getRegionEmoji = (region) => {
-        if (!region) return '🌐';
+        if (!region) return '🇨🇳';
 
         // 常见国家/地区映射
         const regionMap = {
@@ -472,7 +473,7 @@
         const emojiMatch = region.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
         if (emojiMatch) return emojiMatch[0];
 
-        return '🌍';
+        return getMappedRegionEmoji(region);
     };
 
     // 解析节点信息

@@ -44,6 +44,7 @@
         'update:itemsPerPage', // Added
         'open-batch-group-modal', // Added
         'ping',
+        'duplicate',
         'ping-all',
         'sort-by-latency',
         'manage-groups',
@@ -243,6 +244,7 @@
             :pinging-nodes="pingingNodes"
             :compact-grid="compactGrid"
             @ping="emit('ping', $event)"
+            @duplicate="emit('duplicate', $event)"
         />
     </div>
 </template>

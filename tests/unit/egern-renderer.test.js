@@ -61,7 +61,7 @@ describe('Egern native renderer', () => {
         const parsed = yaml.load(rendered);
         const anytls = parsed.proxies.find((item) => item.anytls)?.anytls;
 
-        expect(anytls.name).toBe('🇭🇰 AnyTLS-HK');
+        expect(anytls.name).toBe('AnyTLS-HK');
         expect(anytls.server).toBe('156.239.232.67');
         expect(anytls.port).toBe(443);
         expect(anytls.password).toBe('9d6c62f6-e38d-4146-ab3e-d40568555f89');

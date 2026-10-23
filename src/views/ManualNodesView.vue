@@ -65,6 +65,7 @@
         pingResults,
         pingingNodes,
         pingNodeId,
+        duplicateNode,
         pingAllNodes,
         sortNodesByLatency,
     } = useManualNodes(markDirty);
@@ -213,6 +214,7 @@
             :ping-results="pingResults"
             :pinging-nodes="pingingNodes"
             @ping="pingNodeId"
+            @duplicate="duplicateNode"
             @ping-all="pingAllNodes"
             @sort-by-latency="handleSortByLatency"
         />

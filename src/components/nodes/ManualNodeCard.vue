@@ -1,5 +1,6 @@
 <script setup>
     import { computed } from 'vue';
+    import ManualNodeActions from './ManualNodeActions.vue';
     import { useI18n } from '@/i18n/index.js';
 
     const props = defineProps({
@@ -13,7 +14,14 @@
         isPinging: Boolean,
     });
 
-    const emit = defineEmits(['delete', 'edit', 'toggle-select', 'filter-group', 'ping']);
+    const emit = defineEmits([
+        'delete',
+        'edit',
+        'toggle-select',
+        'filter-group',
+        'ping',
+        'duplicate',
+    ]);
     const { t } = useI18n();
 
     const getProtocol = (url) => {
@@ -107,7 +115,7 @@
 
 <template>
     <div
-        class="group relative flex min-h-[88px] items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/5 dark:border-white/10 dark:bg-gray-900/70"
+        class="group relative flex flex-wrap min-h-[88px] items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/5 dark:border-white/10 dark:bg-gray-900/70"
         :class="{
             'opacity-50 grayscale': !node.enabled && !isSelectionMode,
             'ring-2 ring-primary-500 bg-primary-50 dark:bg-primary-900/10':
@@ -142,7 +150,10 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+        <div
+            class="flex items-center gap-2 overflow-hidden flex-1 min-w-0"
+            :class="{ 'basis-full': !isSelectionMode }"
+        >
             <!-- Group Badge -->
             <div
                 v-if="node.group"
@@ -183,7 +194,7 @@
                 :title="
                     pingResult.message ||
                     (pingResult.status === 'ok'
-                        ? t('manualNodes.connectivityOk')
+                        ? t('manualNodes.probeOk')
                         : t('manualNodes.connectivityFailed'))
                 "
             >
@@ -210,79 +221,24 @@
                 </svg>
                 <span v-if="pingResult.status === 'loading'">{{ t('manualNodes.pinging') }}</span>
                 <span v-else-if="pingResult.status === 'ok'">{{ pingResult.latency }}ms</span>
-                <span v-else>{{ t('manualNodes.unreachable') }}</span>
+                <span v-else>{{
+                    pingResult.code === 'probeSavedRequired'
+                        ? t('manualNodes.probeSaveFirst')
+                        : pingResult.code === 'probeUnsupported'
+                          ? t('manualNodes.probeNotSupported')
+                          : t('manualNodes.unreachable')
+                }}</span>
             </div>
         </div>
 
-        <div
+        <ManualNodeActions
             v-if="!isSelectionMode"
-            class="shrink-0 flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200"
-        >
-            <button
-                @click.stop="emit('ping')"
-                class="flex h-10 w-10 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 transition-colors hover:bg-green-500/10 hover:text-green-500 sm:h-11 sm:w-11"
-                :title="t('actions.ping')"
-                :aria-label="t('actions.ping')"
-                :disabled="isPinging"
-                :class="{ 'animate-pulse text-green-500': isPinging }"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                </svg>
-            </button>
-            <button
-                @click.stop="emit('edit')"
-                class="flex h-10 w-10 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-500/10 hover:text-gray-600 dark:hover:text-gray-200 sm:h-11 sm:w-11"
-                :title="t('actions.edit')"
-                :aria-label="t('actions.edit')"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"
-                    />
-                </svg>
-            </button>
-            <button
-                @click.stop="emit('delete')"
-                class="flex h-10 w-10 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-500 sm:h-11 sm:w-11"
-                :title="t('actions.delete')"
-                :aria-label="t('actions.delete')"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                </svg>
-            </button>
-        </div>
+            class="ml-auto"
+            :is-pinging="isPinging"
+            @ping="emit('ping')"
+            @duplicate="emit('duplicate')"
+            @edit="emit('edit')"
+            @delete="emit('delete')"
+        />
     </div>
 </template>

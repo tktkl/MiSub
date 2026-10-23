@@ -131,8 +131,8 @@ describe('Clash 内置生成器', () => {
         const usGroup = fullConfig['proxy-groups'].find((group) => group.name === '🇺🇸 美国节点');
         const sgGroup = fullConfig['proxy-groups'].find((group) => group.name === '🇸🇬 狮城节点');
 
-        expect(usGroup.proxies).toContain('🇸🇬 机场A 新加坡 原生');
-        expect(usGroup.proxies).toContain('🇺🇸 机场A US-West');
+        expect(usGroup.proxies).toContain('机场A 新加坡 原生');
+        expect(usGroup.proxies).toContain('机场A US-West');
         expect(sgGroup).toBeUndefined();
     });
 
