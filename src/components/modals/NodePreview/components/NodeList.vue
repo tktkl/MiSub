@@ -1,4 +1,5 @@
 <script setup>
+    import { getRegionEmoji } from '../../../../../functions/modules/utils/geo-utils.js';
     import { computed } from 'vue';
     import { useVirtualScroll } from '@/composables/useVirtualScroll.js';
     import { useI18n } from '../../../../i18n/index.js';
@@ -185,6 +186,9 @@
                                             class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400"
                                             style="min-width: 60px"
                                         >
+                                            <span aria-hidden="true" class="mr-1">{{
+                                                getRegionEmoji(parseNodeInfo(node).region)
+                                            }}</span>
                                             {{ parseNodeInfo(node).region }}
                                         </span>
                                     </div>

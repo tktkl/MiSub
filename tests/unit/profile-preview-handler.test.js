@@ -21,6 +21,24 @@ describe('handleProfileMode preview transforms', () => {
         getStorageType.mockResolvedValue('d1');
     });
 
+    it('includes saved manual nodes once and preserves names and region metadata', async () => {
+        const manual = [
+            { id: 'cn', enabled: true, name: 'CN-ATRUST', url: 'socks5://user:pass@example.com:443#old' },
+            { id: 'office', enabled: true, name: 'OFFICE', url: 'ss://YWVzLTEyOC1nY206cGFzcw@example.com:443#old' },
+            { id: 'off', enabled: false, name: 'disabled', url: 'vless://id@example.com:443#off' },
+        ];
+        createAdapter.mockReturnValue({
+            getProfileById: vi.fn().mockResolvedValue({ id: 'p', enabled: true, subscriptions: [], manualNodes: ['cn', 'office', 'cn', 'off'] }),
+            getSubscriptionsByIds: vi.fn().mockResolvedValue(manual),
+            get: vi.fn().mockResolvedValue({ defaultOperators: [] }),
+        });
+        const { handleProfileMode } = await import('../../functions/modules/subscription/profile-handler.js');
+        const result = await handleProfileMode(new Request('https://example.com/api/subscription_nodes'), {}, 'p', 'MiSub-Test');
+        expect(result.nodes.map((node) => node.name)).toEqual(['CN-ATRUST', 'OFFICE']);
+        expect(result.nodes.map((node) => node.region)).toEqual(['中国', '其他']);
+        expect(fetchSubscriptionNodes).not.toHaveBeenCalled();
+    });
+
     it('applies profile operator-chain renaming in preview results', async () => {
         createAdapter.mockReturnValue({
             getProfileById: vi.fn().mockResolvedValue({

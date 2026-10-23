@@ -1,4 +1,5 @@
 <script setup>
+    import { getRegionEmoji } from '../../../../../functions/modules/utils/geo-utils.js';
     import { useI18n } from '../../../../i18n/index.js';
 
     const { t } = useI18n();
@@ -207,6 +208,9 @@
                                 <span
                                     class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-gray-50 text-gray-500 dark:bg-white/5 dark:text-gray-400"
                                 >
+                                    <span aria-hidden="true" class="mr-1">{{
+                                        getRegionEmoji(parseNodeInfo(node).region)
+                                    }}</span>
                                     {{ parseNodeInfo(node).region || 'UNKNOWN' }}
                                 </span>
                             </div>

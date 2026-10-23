@@ -156,7 +156,12 @@ export async function handleProfileMode(
     }
 
     const targetSubscriptions = targetMisubs.filter((sub) => !/^https?:\/\/[^/?#]+:\d+(?:[/?#]|$)/i.test(sub.url));
-    const manualNodes = targetMisubs.filter((sub) => !targetSubscriptions.includes(sub));
+    const manualNodes = Array.from(
+        new Map(
+            [...targetManualNodes, ...targetMisubs.filter((sub) => !targetSubscriptions.includes(sub))]
+                .map((node) => [node.id, node])
+        ).values()
+    );
     // 处理手工节点（直接解析节点URL），并将用户自定义名称写入 URL。
     const manualNodeResults = manualNodes.map((node) => {
         const customName = typeof node.name === 'string' ? node.name.trim() : '';
