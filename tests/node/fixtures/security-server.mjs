@@ -38,6 +38,7 @@ await kv.put(
         enableAccessLog: false,
         enableTrafficNode: false,
         transformConfigMode: 'builtin',
+        customLoginPath: 'test-login',
     })
 );
 await kv.put(

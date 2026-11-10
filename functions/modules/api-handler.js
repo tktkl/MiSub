@@ -20,6 +20,7 @@ import {
     authMiddleware,
     handleLogin,
     handleLogout,
+    getAdminLoginPath,
     createUnauthorizedResponse,
 } from './auth-middleware.js';
 import { sendTgNotification, checkAndNotify } from './notifications.js';
@@ -889,11 +890,13 @@ export async function handleUpdatePassword(request, env) {
             return createErrorResponse('密码必须至少6位字符', 400);
         }
 
+        const loginPath = await getAdminLoginPath(env);
         await setAdminPassword(env, password);
         const response = createJsonResponse({
             success: true,
             message: '密码已更新，请重新登录',
             reauthenticate: true,
+            loginPath,
         });
         response.headers.set('Set-Cookie', (await handleLogout(request)).headers.get('Set-Cookie'));
         return response;

@@ -3,7 +3,12 @@
  * 处理用户认证和会话管理
  */
 
-import { COOKIE_NAME, SESSION_DURATION, SESSION_RENEW_THRESHOLD } from './config.js';
+import {
+    COOKIE_NAME,
+    SESSION_DURATION,
+    SESSION_RENEW_THRESHOLD,
+    KV_KEY_SETTINGS,
+} from './config.js';
 import {
     getCookieSecret,
     getAdminPassword,
@@ -90,8 +95,20 @@ export async function handleRevokeSessions(request, env) {
         return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
     const kv = StorageFactory.resolveKV(env);
     if (!kv) return new Response('Persistent session storage unavailable', { status: 503 });
+    const loginPath = await getAdminLoginPath(env);
     await kv.put('SYSTEM_SESSION_VERSION', crypto.randomUUID());
-    return handleLogout(request);
+    return handleLogout(request, { loginPath });
+}
+
+// Only include this path in authenticated management responses.
+export async function getAdminLoginPath(env) {
+    const storage = StorageFactory.createAdapter(env, await StorageFactory.getStorageType(env));
+    const settings = await storage.get(KV_KEY_SETTINGS);
+    const path =
+        typeof settings?.customLoginPath === 'string'
+            ? settings.customLoginPath.trim().replace(/^\/+/, '')
+            : '';
+    return path ? `/${path}` : '/login';
 }
 
 /**
@@ -169,6 +186,10 @@ export async function verifySignedToken(key, token) {
  * @returns {Promise<Object>}
  */
 export async function getAuthSessionDiagnostic(request, env) {
+    return (await inspectAuthSession(request, env)).diagnostic;
+}
+
+async function inspectAuthSession(request, env) {
     const result = {
         isAuthenticated: false,
         reason: 'unknown',
@@ -200,13 +221,13 @@ export async function getAuthSessionDiagnostic(request, env) {
     result.authSessionCookieCount = matchedCookies.length;
     if (matchedCookies.length === 0) {
         result.reason = 'no_cookie';
-        return result;
+        return { diagnostic: result };
     }
 
     const rawToken = matchedCookies[matchedCookies.length - 1].slice(COOKIE_NAME.length + 1);
     if (!rawToken) {
         result.reason = 'empty_token';
-        return result;
+        return { diagnostic: result };
     }
 
     let token = rawToken;
@@ -224,13 +245,14 @@ export async function getAuthSessionDiagnostic(request, env) {
 
     if (!token) {
         result.reason = 'empty_token';
-        return result;
+        return { diagnostic: result };
     }
 
-    const verifiedData = await verifySignedToken(await sessionSigningKey(env), token);
+    const signingKey = await sessionSigningKey(env);
+    const verifiedData = await verifySignedToken(signingKey, token);
     if (!verifiedData) {
         result.reason = 'invalid_signature_or_secret';
-        return result;
+        return { diagnostic: result };
     }
 
     result.verify.success = true;
@@ -240,7 +262,7 @@ export async function getAuthSessionDiagnostic(request, env) {
 
     if (!hasTimestamp) {
         result.reason = 'invalid_timestamp';
-        return result;
+        return { diagnostic: result };
     }
 
     const sessionAgeMs = Date.now() - ts;
@@ -249,13 +271,13 @@ export async function getAuthSessionDiagnostic(request, env) {
     result.verify.sessionAgeMs = sessionAgeMs;
     if (isExpired) {
         result.reason = 'expired';
-        return result;
+        return { diagnostic: result };
     }
 
     result.isAuthenticated = true;
     result.shouldRenew = sessionAgeMs >= SESSION_RENEW_THRESHOLD;
     result.reason = 'ok';
-    return result;
+    return { diagnostic: result, signingKey };
 }
 
 /**
@@ -264,16 +286,17 @@ export async function getAuthSessionDiagnostic(request, env) {
  * @param {Request} request
  * @param {Object} env
  * @param {Response} response
- * @param {Object|null} diagnostic Optional diagnostic from a prior auth check
  * @returns {Promise<Response>}
  */
-export async function renewAuthSession(request, env, response, diagnostic = null) {
-    const authDiagnostic = diagnostic || (await getAuthSessionDiagnostic(request, env));
+export async function renewAuthSession(request, env, response) {
+    const { diagnostic: authDiagnostic, signingKey } = await inspectAuthSession(request, env);
     if (!authDiagnostic?.isAuthenticated || !authDiagnostic.shouldRenew) {
         return response;
     }
 
-    const token = await createSessionToken(env);
+    // A concurrent revocation must also invalidate this renewal. Reuse the exact
+    // credential/version snapshot that verified the incoming cookie.
+    const token = await createSignedToken(signingKey, `v2:${Date.now()}`);
     const isSecure = request.url.startsWith('https');
     const cookieString = `${COOKIE_NAME}=${token}; Path=/; HttpOnly; ${isSecure ? 'Secure;' : ''} SameSite=Lax; Max-Age=${SESSION_DURATION / 1000}`;
     const renewedResponse = new Response(response.body, {
@@ -443,7 +466,7 @@ async function processLoginAttempt(request, env, client, limitKey) {
  * 处理用户登出
  * @returns {Promise<Response>} 登出响应
  */
-export async function handleLogout(request) {
+export async function handleLogout(request, details = {}) {
     const headers = new Headers({ 'Content-Type': 'application/json' });
     const isSecure = typeof request?.url === 'string' && request.url.startsWith('https');
     const secureFlag = isSecure ? 'Secure;' : '';
@@ -451,7 +474,7 @@ export async function handleLogout(request) {
         'Set-Cookie',
         `${COOKIE_NAME}=; Path=/; HttpOnly; ${secureFlag} SameSite=Strict; Max-Age=0`
     );
-    return new Response(JSON.stringify({ success: true }), { headers });
+    return new Response(JSON.stringify({ success: true, ...details }), { headers });
 }
 
 /**

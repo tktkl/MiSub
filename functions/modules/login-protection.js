@@ -26,7 +26,25 @@ export function beginLoginAttempt(env, client) {
         if (!entry.pending && now - entry.lastFailure >= WINDOW_MS && entry.blockedUntil <= now)
             clients.delete(key);
     }
-    const key = clients.has(client) || clients.size < MAX_CLIENTS ? client : 'overflow';
+    const key = client;
+    if (!clients.has(key) && clients.size >= MAX_CLIENTS) {
+        // Prefer an idle, unblocked client; never evict an attempt still being checked.
+        let oldestIdle;
+        let candidate;
+        for (const [storedKey, entry] of clients) {
+            if (entry.pending) continue;
+            oldestIdle ??= storedKey;
+            if (entry.blockedUntil <= now) {
+                candidate = storedKey;
+                break;
+            }
+        }
+        candidate ??= oldestIdle;
+        // All slots are in flight. Apply brief capacity backpressure without
+        // sharing another client's failures or creating a persistent account lockout.
+        if (candidate === undefined) return { key, seconds: 1 };
+        clients.delete(candidate);
+    }
     const entry = clients.get(key) || {
         failures: [],
         pending: 0,
@@ -36,6 +54,7 @@ export function beginLoginAttempt(env, client) {
     const seconds = Math.max(0, Math.ceil((entry.blockedUntil - now) / 1000));
     if (seconds || entry.pending >= MAX_FAILURES) return { key, seconds: seconds || 1 };
     entry.pending++;
+    clients.delete(key);
     clients.set(key, entry);
     return { key, seconds: 0 };
 }
@@ -51,7 +70,8 @@ export function finishLoginAttempt(env, key) {
 export function recordLoginFailure(env, key) {
     const clients = store(env);
     const now = Date.now();
-    const entry = clients.get(key) || { failures: [], pending: 0, blockedUntil: 0 };
+    const entry = clients.get(key);
+    if (!entry) return;
     entry.failures = [...entry.failures.filter((time) => now - time < WINDOW_MS), now].slice(-10);
     entry.lastFailure = now;
     if (entry.failures.length >= MAX_FAILURES)

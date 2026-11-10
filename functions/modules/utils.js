@@ -262,8 +262,8 @@ export async function isUsingDefaultPassword(env) {
  * @param {string} newPassword - 新密码
  */
 export async function setAdminPassword(env, newPassword) {
-    newPassword = normalizeAdminPassword(newPassword);
-    if (newPassword.length < 6) throw new Error('密码必须至少6位有效字符');
+    if (typeof newPassword !== 'string' || normalizeAdminPassword(newPassword).length < 6)
+        throw new Error('密码必须至少6位有效字符');
     if (getRuntimeEnvValue(env, 'ADMIN_PASSWORD')) {
         throw new Error('当前部署通过环境变量 ADMIN_PASSWORD 设置密码，请在平台控制台修改该变量');
     }
@@ -272,6 +272,7 @@ export async function setAdminPassword(env, newPassword) {
         throw new Error('当前部署未绑定 KV，请在平台控制台通过环境变量 ADMIN_PASSWORD 修改密码');
     }
     await kv.put('SYSTEM_SESSION_VERSION', crypto.randomUUID());
+    // Keep the supplied value: login normalizes both input and stored password once.
     await kv.put('SYSTEM_ADMIN_PASSWORD', newPassword);
 }
 

@@ -86,6 +86,11 @@ test(
         });
         assert.equal(revoked.status, 200);
         assert.match(revoked.headers.get('Set-Cookie'), /Max-Age=0/);
+        const { loginPath } = await revoked.json();
+        assert.equal(loginPath, '/test-login');
+        const loginPage = await fetch(base + loginPath);
+        assert.equal(loginPage.status, 200);
+        assert.match(await loginPage.text(), /MiSub test/);
         assert.equal((await fetch(base + '/api/settings', { headers: auth })).status, 401);
 
         for (let index = 0; index < 6; index++) {

@@ -4,6 +4,7 @@
     import Input from '../../ui/Input.vue';
     import Switch from '../../ui/Switch.vue';
     import { useI18n } from '../../../i18n/index.js';
+    import { writeSessionPreference } from '../../../utils/session-preference.js';
 
     const props = defineProps({
         settings: {
@@ -25,6 +26,15 @@
     const isUpdatingPassword = ref(false);
     const isRevokingSessions = ref(false);
 
+    const redirectToLogin = (loginPath) => {
+        const destination = new URL(window.location.href);
+        destination.pathname = loginPath || '/login';
+        destination.search = '';
+        destination.hash = '';
+        writeSessionPreference('misub:login-path', destination.pathname);
+        window.location.replace(destination.href);
+    };
+
     const handleRevokeSessions = async () => {
         isRevokingSessions.value = true;
         try {
@@ -34,7 +44,7 @@
                 throw new Error(
                     data.error || t('systemSettings.requestFailed', { message: response.status })
                 );
-            window.location.reload();
+            redirectToLogin(data.loginPath);
         } catch (error) {
             showToast(error.message, 'error');
         } finally {
@@ -117,7 +127,7 @@
                 showToast(t('systemSettings.passwordUpdated'), 'success');
                 passwordForm.value.newPassword = '';
                 passwordForm.value.confirmPassword = '';
-                if (data.reauthenticate) window.location.reload();
+                if (data.reauthenticate) redirectToLogin(data.loginPath);
             } else {
                 showToast(data.error || t('systemSettings.updateFailed'), 'error');
             }

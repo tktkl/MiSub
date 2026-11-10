@@ -197,7 +197,7 @@
 - `POST /api/settings/sessions/revoke`
     - Handler：`handleRevokeSessions()`，`functions/modules/auth-middleware.js`
     - 认证：管理员 Cookie 和现有 CSRF 来源校验。
-    - 写入：轮换 `SYSTEM_SESSION_VERSION`，使所有旧后台会话失效，并清除当前 Cookie；订阅凭据不变。
+    - 写入：轮换 `SYSTEM_SESSION_VERSION`，使所有旧后台会话失效，并清除当前 Cookie；订阅凭据不变。成功响应返回已保存的 `loginPath`，用于重新登录。
 
 以下路由位于 `if (!await authMiddleware(...)) return 401` 之后，默认需要管理登录 Cookie。部分 handler 内部还会重复校验方法或认证。
 
