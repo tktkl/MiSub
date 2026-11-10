@@ -1,0 +1,48 @@
+name: Native Node.js and Docker
+
+on:
+    push:
+    pull_request:
+
+permissions:
+    contents: read
+
+jobs:
+    native:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: npm
+            - run: npm ci --no-audit --no-fund
+            - run: npm run test:run
+            - run: npm run test:node
+            - name: Build production image
+              run: docker build -f deploy/dmit/Dockerfile -t misub-native:test .
+            - name: Check Docker persistence and API behavior
+              shell: bash
+              run: |
+                  cat > "$RUNNER_TEMP/misub.env" <<'ENV'
+                  MISUB_PUBLIC_URL=https://sub.example.com
+                  ADMIN_PASSWORD=ci-only-password
+                  COOKIE_SECRET=ci-only-cookie-secret
+                  ENV
+                  docker volume create misub-native-test-data
+                  docker run -d --name misub-native-test --env-file "$RUNNER_TEMP/misub.env" \
+                    --mount source=misub-native-test-data,target=/data \
+                    -p 127.0.0.1:18787:8787 --read-only --tmpfs /tmp:mode=1777 \
+                    --memory 512m misub-native:test
+                  curl --fail --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:18787/healthz
+                  docker exec misub-native-test node -e "if(require('fs').existsSync('/app/node_modules'))process.exit(1)"
+                  python3 deploy/dmit/validate.py initialize --env "$RUNNER_TEMP/misub.env" --state "$RUNNER_TEMP/misub-state"
+                  docker restart misub-native-test
+                  curl --fail --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:18787/healthz
+                  python3 deploy/dmit/validate.py verify --env "$RUNNER_TEMP/misub.env" --state "$RUNNER_TEMP/misub-state"
+            - name: Clean up containers
+              if: always()
+              run: |
+                  docker rm -f misub-native-test || true
+                  docker volume rm misub-native-test-data || true

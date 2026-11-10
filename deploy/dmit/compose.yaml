@@ -3,7 +3,7 @@ services:
     build:
       context: ./source
       dockerfile: deploy/dmit/Dockerfile
-    image: local/misub:node-flags-probe-copy
+    image: local/misub:native-node
     container_name: misub
     restart: unless-stopped
     init: true

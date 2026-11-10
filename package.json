@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "npx wrangler pages dev public --port 8787",
+    "dev:server": "npm run build:server && npm start",
     "build": "vite build",
+    "build:server": "node deploy/dmit/build.mjs",
+    "start": "node deploy/dmit/runtime.mjs",
+    "test:node": "npm run build:server && node --test tests/node/*.test.mjs",
     "preview": "vite preview",
     "test": "vitest --passWithNoTests",
     "test:run": "vitest run --passWithNoTests",
@@ -27,14 +30,13 @@
     "@tailwindcss/vite": "^4.1.18",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/test-utils": "^2.4.6",
+    "esbuild": "^0.27.7",
     "happy-dom": "^20.0.11",
-    "miniflare": "^4.20250803.0",
     "playwright": "^1.60.0",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.1.12",
     "terser": "^5.48.0",
     "vite": "^7.1.2",
-    "vitest": "^4.0.16",
-    "wrangler": "^4.56.0"
+    "vitest": "^4.0.16"
   }
 }
