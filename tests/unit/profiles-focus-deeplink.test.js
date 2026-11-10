@@ -41,7 +41,9 @@ import { useDataStore } from '../../src/stores/useDataStore.js';
 
 const scrollSpy = vi.fn();
 const mountedWrappers = [];
-afterEach(() => {
+afterEach(async () => {
+    // Async component stubs still resolve through Vite; finish those imports before worker teardown.
+    await vi.dynamicImportSettled();
     mountedWrappers.splice(0).forEach((wrapper) => wrapper.unmount());
 });
 
