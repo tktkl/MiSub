@@ -112,6 +112,7 @@ test('native backend preserves migrated sessions, CRUD, subscription output and 
                     id: 'profile-check',
                     name: 'Test profile',
                     enabled: true,
+                    isPublic: false,
                     subscriptions: [],
                     manualNodes: ['ss-node', 'vless-node'],
                 },
@@ -167,6 +168,24 @@ test('native backend preserves migrated sessions, CRUD, subscription output and 
     assert.match(setCookie, /Secure;/);
     assert.match(setCookie, /HttpOnly;/);
     const cookie = setCookie.split(';')[0];
+    for (const route of ['/migrate_to_d1', '/migrate_legacy_d1', '/migrate', '/cron/trigger']) {
+        for (const method of ['GET', 'HEAD']) {
+            const response = await fetch(base + '/api' + route, {
+                method,
+                headers: { Cookie: cookie, Origin: 'https://other-site.example' },
+            });
+            assert.equal(response.status, 405);
+            assert.equal(response.headers.get('Allow'), 'POST');
+            await response.arrayBuffer();
+        }
+        const crossSite = await fetch(base + '/api' + route, {
+            method: 'POST',
+            headers: { Cookie: cookie, Origin: 'https://other-site.example' },
+        });
+        assert.equal(crossSite.status, 403);
+        await crossSite.arrayBuffer();
+    }
+    assert.equal(await storage.kv.get('cron_last_execution'), null);
     assert.equal((await api('/api/kv_test', cookie)).data.writeTest.match, true);
     assert.equal(
         (await api('/api/settings', cookie, { FileName: 'Native persisted' })).response.status,

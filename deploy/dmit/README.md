@@ -48,7 +48,7 @@ memswap_limit: 512m
 
 迁移后登录、订阅 Token、订阅组和已有会话应继续有效；先检查 `/healthz`、登录、订阅输出和重启后的数据，再完成切换。后续更新写入 `native.sqlite`，旧 Miniflare 文件不会同步更新。回滚到旧镜像必须恢复升级前的整份数据备份；切换后已有新数据时，先导出备份再处理回滚。
 
-本地使用 Node.js 22.13+（Docker 已固定 Node 22 镜像），构建和测试：
+本地使用 Node.js 22.22.2+（22 系列；Docker 已固定 Node 22 镜像），构建和测试：
 
 ```sh
 npm ci --no-audit --no-fund

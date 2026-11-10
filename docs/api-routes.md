@@ -11,6 +11,7 @@
     - `csrfOriginMiddleware()`：对 `POST` / `PUT` / `PATCH` / `DELETE` 做 Origin/Referer 校验；无 Cookie 的非浏览器/API 客户端或 Bearer 调用允许继续。
     - `securityHeadersMiddleware()`：统一添加安全响应头。
 - 管理 API 的主要认证方式：`authMiddleware()` 校验 HMAC 登录 Cookie。
+- `/api/migrate_to_d1`、`/api/migrate_legacy_d1`、`/api/migrate`、`/api/cron/trigger` 仅接受 `POST`；其它方法返回 `405` 和 `Allow: POST`，在访问存储或触发操作前终止。`POST` 继续经过原有 CSRF 校验和管理员认证。
 - `/cron` 不走 `/api/*` 的 Cookie 登录认证，使用 `settings.cronSecret`，支持 `Authorization: Bearer <secret>` 或 `?secret=<secret>`。
 
 ## 顶层非 `/api/*` 路由
@@ -22,7 +23,7 @@
 
 - `GET /sub/*`、`GET /{mytoken}`、`GET /{profileToken}`、其它疑似订阅短链路径
     - Handler：`handleMisubRequest()`，实现位于 `functions/modules/subscription/main-handler.js`，由 `functions/modules/subscription-handler.js` re-export。
-    - 认证：公开短链/token 模式；具体访问控制由 token、profile、settings、浏览器伪装和订阅配置决定。
+    - 认证：公开短链/token 模式；具体访问控制由 token、profile、settings、浏览器伪装和订阅配置决定。Shadowrocket 等客户端持有分享链接即可读取订阅，不需要后台登录 Cookie。
     - 读取：settings、subscriptions、profiles、rule templates、node cache。
     - 写入：可能写下载计数、节点缓存、运行态/错误信息、通知状态。
 

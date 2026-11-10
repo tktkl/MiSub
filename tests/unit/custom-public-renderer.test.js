@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// DOMPurify requires a browser-compatible DOM; happy-dom is unsupported upstream.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';

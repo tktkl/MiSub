@@ -156,7 +156,7 @@ export const DEFAULT_SETTINGS = {
 
 - 管理面板没有身份验证
 - 任何人都可以访问 `/cron-dashboard` 路由
-- 任何人都可以调用 `/api/cron/trigger`
+- `/api/cron/trigger` 需要管理员登录 Cookie，只接受 `POST` 并校验请求来源；`GET` / `HEAD` 返回 `405`，不会触发同步。
 
 ### 建议改进
 

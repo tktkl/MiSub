@@ -134,6 +134,8 @@ D1 当前采用“行级 JSON”结构：
 - `downloadCount`：展示用下载次数；读取时会从 `misub_profile_download_count_<id>` 叠加。
 - `expiresAt`：订阅组过期时间。
 
+`isPublic` 控制公开列表展示，不要求订阅客户端登录。Shadowrocket 等客户端通过完整分享链接访问启用的订阅组。分享路径和后台 HMAC 登录 Cookie 是不同的认证边界，公开订阅读取不能用于调用管理 API。需要保密的分享链接应使用不可猜测的路径组件；短自定义 ID 不应被当作强随机凭据。
+
 输出与转换相关字段：
 
 - `transformConfigMode`：转换模板来源模式，如 `global`、`preset`、`custom_template` 等。

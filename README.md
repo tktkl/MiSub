@@ -75,7 +75,7 @@ It is designed for personal and small-team usage: simple operations, clear clien
 
 - A GitHub account
 - A Cloudflare account
-- Node.js 20+ for local development
+- Node.js 22.22.2+ (22.x) for local development and tests
 
 ### Deploy to Cloudflare Pages
 

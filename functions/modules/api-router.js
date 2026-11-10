@@ -82,6 +82,13 @@ function isAuthDiagnosticsEnabled(env) {
     return String(env?.ENABLE_AUTH_DIAGNOSTICS || '').toLowerCase() === 'true';
 }
 
+const POST_ONLY_OPERATIONS = new Set([
+    '/migrate_to_d1',
+    '/migrate_legacy_d1',
+    '/migrate',
+    '/cron/trigger',
+]);
+
 /**
  * 处理主要的API请求
  * @param {Object} request - HTTP请求对象
@@ -91,6 +98,11 @@ function isAuthDiagnosticsEnabled(env) {
 export async function handleApiRequest(request, env, context = null) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api/, '');
+
+    // State-changing operations must enter the POST/CSRF path, including browser navigations.
+    if (POST_ONLY_OPERATIONS.has(path) && request.method !== 'POST') {
+        return createJsonResponse({ error: 'Method Not Allowed' }, 405, { Allow: 'POST' });
+    }
 
     if (path === '/external-nodes-callback') {
         return handleExternalNodesCallbackRequest(request, env);
@@ -102,9 +114,6 @@ export async function handleApiRequest(request, env, context = null) {
 
     // [新增] 数据存储迁移接口 (KV -> D1)
     if (path === '/migrate_to_d1') {
-        if (request.method !== 'POST') {
-            return createJsonResponse({ error: 'Method Not Allowed' }, 405, { Allow: 'POST' });
-        }
         if (!(await authMiddleware(request, env))) {
             return createJsonResponse({ error: 'Unauthorized' }, 401);
         }
