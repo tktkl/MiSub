@@ -28,7 +28,17 @@ docker compose ps
 curl -f http://127.0.0.1:18787/healthz
 ```
 
-`GET/HEAD /healthz` 返回 204，由 Node.js 直接处理，不加载登录页、不读取业务存储，也不触发后台任务。Node 进程即为应用主进程，退出后由 `restart: unless-stopped` 自动恢复。默认 512 MiB 容器限制、128 MiB V8 老生代上限，容器不使用 swap，停止时最多等待 10 秒让请求和后台写入结束。
+`GET/HEAD /healthz` 返回 204，由 Node.js 直接处理，不加载登录页、不读取业务存储，也不触发后台任务。Node 进程即为应用主进程，退出后由 `restart: unless-stopped` 自动恢复。停止时最多等待 10 秒让请求和后台写入结束。
+
+整个服务采用 **64 MiB 软预留、512 MiB 内存硬上限**：
+
+```yaml
+mem_reservation: 64m
+mem_limit: 512m
+memswap_limit: 512m
+```
+
+64 MiB 是主机内存紧张时参考的软预留，不会预先分配，也不保证服务至少占用 64 MiB；实际占用随负载变化。512 MiB 是整个容器的内存硬上限，覆盖 Node.js、SQLite、Buffer 等全部开销；`memswap_limit` 与它相等，表示禁用 swap。不再设置固定的 `--max-old-space-size`，由 Node.js 使用默认堆管理。健康检查同样沿用默认设置。参见 [Docker 内存限制说明](https://docs.docker.com/engine/containers/resource_constraints/#limit-a-containers-access-to-memory)。
 
 ## 从旧 Miniflare 部署升级
 

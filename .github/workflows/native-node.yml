@@ -34,7 +34,7 @@ jobs:
                   docker run -d --name misub-native-test --env-file "$RUNNER_TEMP/misub.env" \
                     --mount source=misub-native-test-data,target=/data \
                     -p 127.0.0.1:18787:8787 --read-only --tmpfs /tmp:mode=1777 \
-                    --memory 512m misub-native:test
+                    --memory-reservation 64m --memory 512m --memory-swap 512m misub-native:test
                   curl --fail --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:18787/healthz
                   docker exec misub-native-test node -e "if(require('fs').existsSync('/app/node_modules'))process.exit(1)"
                   python3 deploy/dmit/validate.py initialize --env "$RUNNER_TEMP/misub.env" --state "$RUNNER_TEMP/misub-state"
