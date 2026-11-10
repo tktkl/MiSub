@@ -8,7 +8,7 @@ RUN npm run build && npm run build:server
 
 FROM node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
 WORKDIR /app
-ENV NODE_ENV=production PORT=8787 MISUB_DATA_DIR=/data NODE_OPTIONS=--max-old-space-size=256
+ENV NODE_ENV=production PORT=8787 MISUB_DATA_DIR=/data NODE_OPTIONS=--max-old-space-size=128
 COPY --from=build --chown=node:node /app/schema.sql ./
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/deploy/dmit ./deploy/dmit

@@ -28,7 +28,7 @@ docker compose ps
 curl -f http://127.0.0.1:18787/healthz
 ```
 
-`GET/HEAD /healthz` 返回 204，由 Node.js 直接处理，不加载登录页、不读取业务存储，也不触发后台任务。Node 进程即为应用主进程，退出后由 `restart: unless-stopped` 自动恢复。默认 512 MiB 容器限制、256 MiB V8 老生代上限，停止时最多等待 10 秒让请求和后台写入结束。
+`GET/HEAD /healthz` 返回 204，由 Node.js 直接处理，不加载登录页、不读取业务存储，也不触发后台任务。Node 进程即为应用主进程，退出后由 `restart: unless-stopped` 自动恢复。默认 512 MiB 容器限制、128 MiB V8 老生代上限，容器不使用 swap，停止时最多等待 10 秒让请求和后台写入结束。
 
 ## 从旧 Miniflare 部署升级
 
