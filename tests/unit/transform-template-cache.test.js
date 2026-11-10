@@ -81,13 +81,11 @@ describe('Transform template cache', () => {
 
         await fetchTransformTemplate(storage, 'https://example.com/template.yaml');
 
-        expect(fetch).toHaveBeenCalledWith('https://example.com/template.yaml', {
-            headers: {
-                'User-Agent': 'MiSub-Template-Fetch/1.0',
-                'If-None-Match': '"cached"',
-                'If-Modified-Since': 'Wed, 13 May 2026 00:00:00 GMT',
-            },
-        });
+        const request = fetch.mock.calls[0][0];
+        expect(request.url).toBe('https://example.com/template.yaml');
+        expect(request.headers.get('User-Agent')).toBe('MiSub-Template-Fetch/1.0');
+        expect(request.headers.get('If-None-Match')).toBe('"cached"');
+        expect(request.headers.get('If-Modified-Since')).toBe('Wed, 13 May 2026 00:00:00 GMT');
     });
 
     it('reads revalidation settings from storage adapter env when available', async () => {

@@ -1,5 +1,6 @@
 import { getCache } from '../../services/node-cache-service.js';
 import { assertPublicNetworkUrl } from '../security-utils.js';
+import { fetchPublicNetworkUrl } from '../public-network.js';
 
 const TEMPLATE_CACHE_PREFIX = 'transform_template_';
 const DEFAULT_REVALIDATE_INTERVAL_SECONDS = 5 * 60;
@@ -109,11 +110,15 @@ export async function fetchTransformTemplate(storageAdapter, templateUrl, forceR
 
     let response;
     try {
-        response = await fetch(safeTemplateUrl, {
-            headers: forceRefresh
-                ? { 'User-Agent': 'MiSub-Template-Fetch/1.0' }
-                : buildFetchHeaders(cachedTemplate),
-        });
+        response = await fetchPublicNetworkUrl(
+            safeTemplateUrl,
+            {
+                headers: forceRefresh
+                    ? { 'User-Agent': 'MiSub-Template-Fetch/1.0' }
+                    : buildFetchHeaders(cachedTemplate),
+            },
+            { fetcher: storageAdapter?.env?.PUBLIC_FETCH }
+        );
     } catch (error) {
         if (
             cachedTemplate?.nodes &&

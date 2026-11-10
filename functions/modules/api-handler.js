@@ -8,6 +8,7 @@ import {
     getCookieSecret,
     getAdminPassword,
     setAdminPassword,
+    normalizeAdminPassword,
     isUsingDefaultPassword,
     createJsonResponse,
     createErrorResponse,
@@ -874,16 +875,28 @@ export async function handleUpdatePassword(request, env) {
     if (request.method !== 'POST') {
         return createErrorResponse('Method Not Allowed', 405);
     }
+    if (env?.ADMIN_PASSWORD?.trim()) {
+        return createErrorResponse(
+            '当前部署通过环境变量 ADMIN_PASSWORD 管理密码，请修改该变量并重建容器；变更后旧会话将失效。',
+            409
+        );
+    }
 
     try {
         const { password } = await readJsonWithLimit(request, JSON_BODY_LIMITS.auth);
 
-        if (!password || typeof password !== 'string' || password.length < 6) {
+        if (typeof password !== 'string' || normalizeAdminPassword(password).length < 6) {
             return createErrorResponse('密码必须至少6位字符', 400);
         }
 
         await setAdminPassword(env, password);
-        return createJsonResponse({ success: true, message: '密码已更新' });
+        const response = createJsonResponse({
+            success: true,
+            message: '密码已更新，请重新登录',
+            reauthenticate: true,
+        });
+        response.headers.set('Set-Cookie', (await handleLogout(request)).headers.get('Set-Cookie'));
+        return response;
     } catch (e) {
         console.error('[API Error /settings/password]', e);
         return createErrorResponse('Failed to update password', 500);

@@ -11,16 +11,17 @@ import {
     JSON_BODY_LIMITS,
     RequestBodyTooLargeError,
     readJsonWithLimit,
+    normalizeAdminPassword as normalizeSecret,
 } from './utils.js';
 import { StorageFactory } from '../storage-adapter.js';
-
-function normalizeSecret(value) {
-    return String(value ?? '')
-        .replace(/\uFEFF/g, '')
-        .replace(/[\u200B-\u200D]/g, '')
-        .trim()
-        .replace(/^['"]|['"]$/g, '');
-}
+import {
+    auditLogin,
+    loginClient,
+    beginLoginAttempt,
+    finishLoginAttempt,
+    recordLoginFailure,
+    recordLoginSuccess,
+} from './login-protection.js';
 
 function buildRequestMeta(request, env) {
     return {
@@ -40,6 +41,57 @@ function buildRequestMeta(request, env) {
 async function isUsingDefaultAdminPassword(env) {
     const debugInfo = await getAuthDebugInfo(env);
     return debugInfo?.adminPassword?.isDefaultFallback === true;
+}
+
+async function sessionDigest(secret, data) {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+    const digest = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(
+        ''
+    );
+}
+
+async function sessionSigningKey(env) {
+    const secret = await getCookieSecret(env);
+    const password = normalizeSecret(await getAdminPassword(env));
+    const version =
+        (await StorageFactory.resolveKV(env)?.get('SYSTEM_SESSION_VERSION')) || 'initial';
+    return sessionDigest(secret, JSON.stringify(['MiSub/admin-session/v2', password, version]));
+}
+
+export async function initializeSessionCredentials(env) {
+    const kv = StorageFactory.resolveKV(env);
+    if (!kv) throw new Error('Session revocation requires persistent storage');
+    if (normalizeSecret(await getAdminPassword(env)).length < 6)
+        throw new Error('ADMIN_PASSWORD must contain at least 6 effective characters');
+    const fingerprint = await sessionDigest(
+        await getCookieSecret(env),
+        JSON.stringify(['MiSub/credentials/v1', normalizeSecret(await getAdminPassword(env))])
+    );
+    if ((await kv.get('SYSTEM_SESSION_CREDENTIALS')) !== fingerprint) {
+        await kv.put('SYSTEM_SESSION_VERSION', crypto.randomUUID());
+        await kv.put('SYSTEM_SESSION_CREDENTIALS', fingerprint);
+    }
+}
+
+export async function createSessionToken(env, issuedAt = Date.now()) {
+    return createSignedToken(await sessionSigningKey(env), `v2:${issuedAt}`);
+}
+
+export async function handleRevokeSessions(request, env) {
+    if (request.method !== 'POST')
+        return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
+    const kv = StorageFactory.resolveKV(env);
+    if (!kv) return new Response('Persistent session storage unavailable', { status: 503 });
+    await kv.put('SYSTEM_SESSION_VERSION', crypto.randomUUID());
+    return handleLogout(request);
 }
 
 /**
@@ -78,6 +130,7 @@ export async function verifySignedToken(key, token) {
     if (parts.length !== 2) return null;
 
     const [data, signatureHex] = parts;
+    if (!/^[a-f0-9]{64}$/i.test(signatureHex) || data.length > 256) return null;
 
     try {
         const encoder = new TextEncoder();
@@ -136,12 +189,6 @@ export async function getAuthSessionDiagnostic(request, env) {
         shouldRenew: false,
     };
 
-    const secret = await getCookieSecret(env);
-    if (!secret) {
-        result.reason = 'no_secret';
-        return result;
-    }
-
     const cookieHeader = request.headers.get('Cookie') || '';
     result.cookieHeaderPresent = cookieHeader.length > 0;
 
@@ -180,15 +227,15 @@ export async function getAuthSessionDiagnostic(request, env) {
         return result;
     }
 
-    const verifiedData = await verifySignedToken(secret, token);
+    const verifiedData = await verifySignedToken(await sessionSigningKey(env), token);
     if (!verifiedData) {
         result.reason = 'invalid_signature_or_secret';
         return result;
     }
 
     result.verify.success = true;
-    const ts = parseInt(verifiedData, 10);
-    const hasTimestamp = Number.isFinite(ts);
+    const ts = /^v2:\d{13}$/.test(verifiedData) ? Number(verifiedData.slice(3)) : NaN;
+    const hasTimestamp = Number.isFinite(ts) && ts <= Date.now() + 60_000;
     result.verify.hasTimestamp = hasTimestamp;
 
     if (!hasTimestamp) {
@@ -226,10 +273,7 @@ export async function renewAuthSession(request, env, response, diagnostic = null
         return response;
     }
 
-    const secret = await getCookieSecret(env);
-    if (!secret) return response;
-
-    const token = await createSignedToken(secret, String(Date.now()));
+    const token = await createSessionToken(env);
     const isSecure = request.url.startsWith('https');
     const cookieString = `${COOKIE_NAME}=${token}; Path=/; HttpOnly; ${isSecure ? 'Secure;' : ''} SameSite=Lax; Max-Age=${SESSION_DURATION / 1000}`;
     const renewedResponse = new Response(response.body, {
@@ -314,20 +358,42 @@ export async function authMiddleware(request, env) {
  * @param {Object} env - Cloudflare 环境对象
  * @returns {Promise<Response>} 登录响应
  */
-export async function handleLogin(request, env) {
+export async function handleLogin(request, env, context = {}) {
     if (request.method !== 'POST') {
         return new Response('Method Not Allowed', { status: 405 });
     }
 
+    const client = loginClient(request, context);
+    const limit = beginLoginAttempt(env, client);
+    if (limit.seconds) {
+        auditLogin('login_throttled', client);
+        return new Response(
+            JSON.stringify({ error: '登录尝试过多，请稍后重试', retryAfterSeconds: limit.seconds }),
+            {
+                status: 429,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Retry-After': String(limit.seconds),
+                    'Cache-Control': 'no-store',
+                },
+            }
+        );
+    }
+    try {
+        return await processLoginAttempt(request, env, client, limit.key);
+    } finally {
+        finishLoginAttempt(env, limit.key);
+    }
+}
+
+async function processLoginAttempt(request, env, client, limitKey) {
     const logMeta = buildRequestMeta(request, env);
     let payload;
     try {
         payload = await readJsonWithLimit(request, JSON_BODY_LIMITS.auth);
     } catch (e) {
-        console.error('[API Error /login] Request body parse failed', {
-            ...logMeta,
-            error: e?.message,
-        });
+        recordLoginFailure(env, limitKey);
+        auditLogin('login_invalid_request', client);
         if (e instanceof RequestBodyTooLargeError) {
             return new Response(JSON.stringify({ error: e.message }), {
                 status: e.status,
@@ -339,13 +405,14 @@ export async function handleLogin(request, env) {
 
     try {
         const { password } = payload || {};
-        const inputPassword = normalizeSecret(password);
+        const inputPassword = typeof password === 'string' ? normalizeSecret(password) : null;
         const currentPassword = normalizeSecret(await getAdminPassword(env));
         const isPasswordMatched = inputPassword === currentPassword;
 
         if (isPasswordMatched) {
-            const secret = await getCookieSecret(env);
-            const token = await createSignedToken(secret, String(Date.now()));
+            recordLoginSuccess(env, limitKey);
+            auditLogin('login_success', client);
+            const token = await createSessionToken(env);
             const isSecure = request.url.startsWith('https');
             const cookieString = `${COOKIE_NAME}=${token}; Path=/; HttpOnly; ${isSecure ? 'Secure;' : ''} SameSite=Lax; Max-Age=${SESSION_DURATION / 1000}`;
             const responseBody = { success: true };
@@ -363,6 +430,8 @@ export async function handleLogin(request, env) {
                 },
             });
         }
+        recordLoginFailure(env, limitKey);
+        auditLogin('login_failed', client);
         return new Response(JSON.stringify({ error: '密码错误' }), { status: 401 });
     } catch (e) {
         console.error('[API Error /login] Login handler failed', { ...logMeta, error: e?.message });

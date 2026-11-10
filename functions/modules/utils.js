@@ -146,33 +146,22 @@ export async function conditionalKVPut(env, key, newData, oldData = null) {
 
 /**
  * 获取或生成 Cookie 加密密钥
- * 优先顺序：KV → 环境变量 COOKIE_SECRET → 随机生成（无 KV 时仅内存有效）
+ * 优先顺序：环境变量 COOKIE_SECRET → KV → 随机生成（无 KV 时仅内存有效）
  * @param {Object} env - 运行时环境对象
  * @returns {Promise<string>} 密钥
  */
 export async function getCookieSecret(env) {
     const kv = getKV(env);
     const runtimeCookieSecret = getRuntimeEnvValue(env, 'COOKIE_SECRET');
+    if (runtimeCookieSecret) return runtimeCookieSecret;
 
     if (kv) {
-        // 1. 尝试从 KV 读取
         const kvSecret = await safeKvGet(kv, 'SYSTEM_COOKIE_SECRET');
         if (kvSecret) return kvSecret;
-
-        // 2. 有环境变量则优先回退到环境变量，并尽力写回 KV
-        if (runtimeCookieSecret) {
-            await safeKvPut(kv, 'SYSTEM_COOKIE_SECRET', runtimeCookieSecret);
-            return runtimeCookieSecret;
-        }
-
-        // 3. 生成新密钥并尽力持久化到 KV；若 KV 暂不可用则退化为本次运行临时密钥
         const newSecret = crypto.randomUUID();
         await safeKvPut(kv, 'SYSTEM_COOKIE_SECRET', newSecret);
         return newSecret;
     }
-
-    // 无 KV：直接使用环境变量，无则生成临时密钥（重启后失效）
-    if (runtimeCookieSecret) return runtimeCookieSecret;
     return crypto.randomUUID();
 }
 
@@ -196,6 +185,14 @@ export async function getAdminPassword(env) {
     }
 
     return 'admin';
+}
+
+export function normalizeAdminPassword(value) {
+    return String(value ?? '')
+        .replace(/\uFEFF/g, '')
+        .replace(/[\u200B-\u200D]/g, '')
+        .trim()
+        .replace(/^['"]|['"]$/g, '');
 }
 
 /**
@@ -265,6 +262,8 @@ export async function isUsingDefaultPassword(env) {
  * @param {string} newPassword - 新密码
  */
 export async function setAdminPassword(env, newPassword) {
+    newPassword = normalizeAdminPassword(newPassword);
+    if (newPassword.length < 6) throw new Error('密码必须至少6位有效字符');
     if (getRuntimeEnvValue(env, 'ADMIN_PASSWORD')) {
         throw new Error('当前部署通过环境变量 ADMIN_PASSWORD 设置密码，请在平台控制台修改该变量');
     }
@@ -272,6 +271,7 @@ export async function setAdminPassword(env, newPassword) {
     if (!kv) {
         throw new Error('当前部署未绑定 KV，请在平台控制台通过环境变量 ADMIN_PASSWORD 修改密码');
     }
+    await kv.put('SYSTEM_SESSION_VERSION', crypto.randomUUID());
     await kv.put('SYSTEM_ADMIN_PASSWORD', newPassword);
 }
 

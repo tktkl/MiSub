@@ -23,6 +23,24 @@
         confirmPassword: '',
     });
     const isUpdatingPassword = ref(false);
+    const isRevokingSessions = ref(false);
+
+    const handleRevokeSessions = async () => {
+        isRevokingSessions.value = true;
+        try {
+            const response = await fetch('/api/settings/sessions/revoke', { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok || !data.success)
+                throw new Error(
+                    data.error || t('systemSettings.requestFailed', { message: response.status })
+                );
+            window.location.reload();
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            isRevokingSessions.value = false;
+        }
+    };
 
     const ensureExternalApiDefaults = (settings) => {
         if (!settings.externalApi || typeof settings.externalApi !== 'object') {
@@ -99,6 +117,7 @@
                 showToast(t('systemSettings.passwordUpdated'), 'success');
                 passwordForm.value.newPassword = '';
                 passwordForm.value.confirmPassword = '';
+                if (data.reauthenticate) window.location.reload();
             } else {
                 showToast(data.error || t('systemSettings.updateFailed'), 'error');
             }
@@ -431,7 +450,17 @@ CREATE INDEX IF NOT EXISTS idx_settings_updated_at ON settings(updated_at);`;
                         />
                     </div>
                 </div>
-                <div class="flex items-end">
+                <div class="flex flex-col justify-end gap-3">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ t('systemSettings.revokeSessionsHint') }}
+                    </p>
+                    <button
+                        @click="handleRevokeSessions"
+                        :disabled="isRevokingSessions"
+                        class="px-6 py-2.5 misub-radius-lg text-sm font-medium border border-red-300 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950 disabled:opacity-50"
+                    >
+                        {{ t('systemSettings.revokeSessions') }}
+                    </button>
                     <button
                         @click="handleUpdatePassword"
                         :disabled="isUpdatingPassword || !passwordForm.newPassword"

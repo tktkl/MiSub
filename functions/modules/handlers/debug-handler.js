@@ -361,9 +361,13 @@ export async function handlePreviewContentRequest(request, env) {
             return createErrorResponse(urlValidation.error, 400);
         }
 
-        const response = await safeFetchPublicUrl(urlValidation.url.toString(), {
-            headers: { 'User-Agent': userAgent },
-        });
+        const response = await safeFetchPublicUrl(
+            urlValidation.url.toString(),
+            {
+                headers: { 'User-Agent': userAgent },
+            },
+            { fetcher: env.PUBLIC_FETCH }
+        );
 
         if (!response.ok) {
             return createJsonResponse(

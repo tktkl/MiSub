@@ -78,7 +78,8 @@ export async function handleSingleSubscriptionMode(
         subscription.fetchProxy,
         skipCertVerify,
         Boolean(subscription?.plusAsSpace),
-        subscription?.enableNodeCache === true
+        subscription?.enableNodeCache === true,
+        env
     );
 
     return {
@@ -104,7 +105,8 @@ export async function handleDirectUrlMode(
     subscriptionUrl,
     userAgent,
     skipCertVerify = false,
-    plusAsSpace = false
+    plusAsSpace = false,
+    env = null
 ) {
     const debug = subscriptionUrl.includes('b0b422857bb46aba65da8234c84f38c6');
     const result = await fetchSubscriptionNodes(
@@ -116,7 +118,9 @@ export async function handleDirectUrlMode(
         '',
         null,
         skipCertVerify,
-        plusAsSpace
+        plusAsSpace,
+        false,
+        env
     );
 
     return {

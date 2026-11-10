@@ -763,7 +763,7 @@ describe('handleMisubRequest regression coverage', () => {
                 },
                 subscriptions,
             });
-            adapter.store.set('node_cache_token_stable-token', {
+            adapter.store.set('node_cache_token_v2_stable-token', {
                 nodes: 'trojan://cached@example.com:443#Cached\n',
                 timestamp: Date.now(),
                 nodeCount: 1,
@@ -824,7 +824,7 @@ describe('handleMisubRequest regression coverage', () => {
                 { length: 156 },
                 (_, index) => `trojan://cached${index}@node${index}.example.com:443#Cached-${index}`
             ).join('\n') + '\n';
-        adapter.store.set('node_cache_token_stable-token', {
+        adapter.store.set('node_cache_token_v2_stable-token', {
             nodes: healthyNodes,
             timestamp: Date.now(),
             nodeCount: 156,
@@ -860,9 +860,9 @@ describe('handleMisubRequest regression coverage', () => {
             expect(text.split('\n').filter(Boolean)).toHaveLength(156);
             expect(text).toContain('trojan://cached0@node0.example.com:443#Cached-0');
             expect(text).not.toContain('11111111-1111-1111-1111-111111111111');
-            expect(adapter.store.get('node_cache_token_stable-token').nodeCount).toBe(156);
+            expect(adapter.store.get('node_cache_token_v2_stable-token').nodeCount).toBe(156);
             expect(warnSpy).toHaveBeenCalledWith(
-                '[Cache] Refusing to overwrite cache node_cache_token_stable-token after suspicious node-count drop (156 -> 3)'
+                '[Cache] Refusing to overwrite cache node_cache_token_v2_stable-token after suspicious node-count drop (156 -> 3)'
             );
         } finally {
             logSpy.mockRestore();

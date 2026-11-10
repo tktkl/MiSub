@@ -148,7 +148,8 @@ export async function handleSubscriptionNodesRequest(request, env) {
                     subscriptionUrl,
                     userAgent,
                     skipCertVerify,
-                    plusAsSpace
+                    plusAsSpace,
+                    env
                 );
                 break;
             default:

@@ -18,6 +18,7 @@ import {
     handleLogout,
     getAuthSessionDiagnostic,
     getLoginPasswordDiagnostic,
+    handleRevokeSessions,
 } from './auth-middleware.js';
 import {
     handleDataRequest,
@@ -70,6 +71,7 @@ import {
 import { handleGithubReleaseRequest } from './handlers/github-proxy-handler.js'; // [NEW] Import handler
 import { handleParseSubscription } from './parse-subscription-handler.js';
 import { safeFetchPublicUrl, validatePublicFetchUrl, redactUrl } from './security-utils.js';
+import { fetchPublicNetworkUrl } from './public-network.js';
 import { normalizeSubconverterBackend } from './subscription/main-handler.js';
 import { maybeRunScheduledTasks } from './scheduled-task-runner.js';
 import { handleExternalNodesCallbackRequest } from '../services/external-nodes-callback-service.js';
@@ -87,6 +89,7 @@ const POST_ONLY_OPERATIONS = new Set([
     '/migrate_legacy_d1',
     '/migrate',
     '/cron/trigger',
+    '/settings/sessions/revoke',
 ]);
 
 /**
@@ -238,7 +241,7 @@ export async function handleApiRequest(request, env, context = null) {
     }
 
     if (path === '/login') {
-        return await handleLogin(request, env);
+        return await handleLogin(request, env, context || {});
     }
 
     if (path === '/public_config' || path === '/config') {
@@ -462,7 +465,10 @@ export async function handleApiRequest(request, env, context = null) {
                 if (!rootDomain) {
                     return createJsonResponse({ success: true, name: '', rootDomain: '' });
                 }
-                const name = await fetchAirportSiteTitle(rootDomain, { timeout: 5000 });
+                const name = await fetchAirportSiteTitle(rootDomain, {
+                    timeout: 5000,
+                    fetcher: env.PUBLIC_FETCH,
+                });
                 return createJsonResponse({ success: true, name, rootDomain });
             } catch (error) {
                 return createErrorResponse(`识别失败: ${error.message}`, 400);
@@ -534,6 +540,9 @@ export async function handleApiRequest(request, env, context = null) {
 
         case '/settings/password':
             return await handleUpdatePassword(request, env);
+
+        case '/settings/sessions/revoke':
+            return await handleRevokeSessions(request, env);
 
         case '/settings/reset':
             if (request.method === 'POST') {
@@ -620,8 +629,9 @@ export async function handleSubconverterTestRequest(request, env) {
         endpoint.searchParams.set('sort', 'false');
 
         const startedAt = Date.now();
-        const response = await fetch(
-            new Request(endpoint.toString(), {
+        const response = await fetchPublicNetworkUrl(
+            endpoint.toString(),
+            {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'MiSub/Backend-Test',
@@ -629,7 +639,8 @@ export async function handleSubconverterTestRequest(request, env) {
                     'Cache-Control': 'no-cache',
                 },
                 signal: controller.signal,
-            })
+            },
+            { fetcher: env.PUBLIC_FETCH }
         );
         const elapsedMs = Date.now() - startedAt;
         clearTimeout(timeoutId);
@@ -722,15 +733,19 @@ export async function handleExternalFetchRequest(request, env) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-        const response = await safeFetchPublicUrl(urlValidation.url.toString(), {
-            method: 'GET',
-            headers: {
-                'User-Agent': 'v2rayN/7.23',
-                Accept: '*/*',
-                'Cache-Control': 'no-cache',
+        const response = await safeFetchPublicUrl(
+            urlValidation.url.toString(),
+            {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'v2rayN/7.23',
+                    Accept: '*/*',
+                    'Cache-Control': 'no-cache',
+                },
+                signal: controller.signal,
             },
-            signal: controller.signal,
-        });
+            { fetcher: env.PUBLIC_FETCH }
+        );
 
         clearTimeout(timeoutId);
 

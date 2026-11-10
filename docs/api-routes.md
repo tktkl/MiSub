@@ -40,6 +40,7 @@
 - `POST /api/login`
     - Handler：`handleLogin()`，`functions/modules/auth-middleware.js`
     - 认证：公开登录入口。
+    - 限制：应用按可信来源 IP 统计失败，15 分钟内 5 次失败后返回 `429` / `Retry-After`，首次退避 30 秒、继续失败最长 15 分钟；不影响订阅下载。
     - 读取：管理员密码、Cookie secret。
     - 写入：设置登录 Cookie；必要时初始化/读取密码相关存储。
 
@@ -192,6 +193,11 @@
     - 当前不会主动拉取远程订阅内容，只做轻量聚合。
 
 ## `/api/*` 登录后管理接口
+
+- `POST /api/settings/sessions/revoke`
+    - Handler：`handleRevokeSessions()`，`functions/modules/auth-middleware.js`
+    - 认证：管理员 Cookie 和现有 CSRF 来源校验。
+    - 写入：轮换 `SYSTEM_SESSION_VERSION`，使所有旧后台会话失效，并清除当前 Cookie；订阅凭据不变。
 
 以下路由位于 `if (!await authMiddleware(...)) return 401` 之后，默认需要管理登录 Cookie。部分 handler 内部还会重复校验方法或认证。
 

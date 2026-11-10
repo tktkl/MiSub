@@ -20,6 +20,8 @@ VPS 部署运行原生 Node.js HTTP 服务，使用 Node 内置 SQLite 和 TCP �
 
 容器仅发布 `127.0.0.1:18787`，Nginx 提供 `https://sub.jiyax.com`。已有 `/sub/` 路径继续提供 S-UI；MiSub 使用自己的 Token 短路径。`MISUB_PUBLIC_URL` 必须设置为对外访问的 HTTP(S) origin，服务依此生成安全 Cookie 和校验 CSRF，不信任请求中的 Host 或 X-Forwarded-Host。
 
+本轮不修改 Nginx，也不配置 Nginx 登录限流。应用使用现有反代覆盖写入的 `X-Real-IP`，并仅在来自本机代理、且来源 IP 属于 Cloudflare 官方网段时采纳 `CF-Connecting-IP`。Compose 的 `MISUB_TRUST_PROXY=true` 依赖本机端口绑定和现有反代覆盖规则；更换网络拓扑时应先关闭它。应用登录失败限制、会话撤销、外部下载边界见 [安全维护文档](../../docs/security-maintenance.md)。首次升级到会话 v2 后需重新登录，原分享链接继续有效。
+
 ```sh
 cd /opt/misub
 docker compose build
@@ -62,4 +64,4 @@ npm start
 
 `validate.py` 是首次空库部署的初始化脚本；已有真实数据环境不要运行它的 initialize/cleanup 模式。
 
-`npm run test:node` 使用真实 HTTP、SQLite 和本地 TCP 连接，覆盖旧存储导入及失败回滚、已有会话、数据保存、订阅输出、重启持久化、静态资源边界、流式上传和健康检查。
+`npm run test:node` 使用真实 HTTP、SQLite 和本地 TCP 连接，覆盖旧存储导入及失败回滚、旧会话拒绝、新会话重启持久化、数据保存、匿名订阅与缓存隔离、登录限流、IP 头伪造、DNS 和重定向边界、下载取消、静态资源边界、流式上传和健康检查。

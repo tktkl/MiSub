@@ -3,6 +3,8 @@
  * 提供自动重试、并发控制和超时处理
  */
 
+import { fetchPublicNetworkUrl } from '../modules/public-network.js';
+
 const DEFAULT_RETRY_OPTIONS = {
     MAX_RETRIES: 2, // 最多重试 2 次
     BASE_DELAY: 1000, // 重试基础延迟 1 秒
@@ -27,7 +29,7 @@ export async function fetchWithRetry(url, init = {}, options = {}) {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            const response = await fetch(url, init);
+            const response = await fetchPublicNetworkUrl(url, init, { fetcher: options.fetcher });
 
             if (response.ok) {
                 return response;
@@ -47,6 +49,7 @@ export async function fetchWithRetry(url, init = {}, options = {}) {
             throw new Error(`HTTP ${response.status}`);
         } catch (error) {
             lastError = error;
+            if ([400, 413].includes(error.status)) throw error;
             if (attempt === maxRetries) {
                 break;
             }

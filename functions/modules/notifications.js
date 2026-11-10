@@ -6,6 +6,7 @@
 
 import { formatBytes } from './utils.js';
 import { KV_KEY_SUBS, KV_KEY_SETTINGS, DEFAULT_SETTINGS, SYSTEM_CONSTANTS } from './config.js';
+import { fetchPublicNetworkUrl } from './public-network.js';
 // 导入核心通知服务及工具
 import {
     sendTgNotification as sendCoreTg,
@@ -127,7 +128,7 @@ export async function handleCronTrigger(env) {
     console.info(`[Cron] Starting parallel update for ${httpSubscriptions.length} subscriptions`);
     const startTime = Date.now();
 
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 2;
     const TIMEOUT = 15000;
 
     const nodeRegex =
@@ -140,16 +141,10 @@ export async function handleCronTrigger(env) {
     async function processSubscription(sub) {
         try {
             const fetchWithTimeout = (url, options) => {
-                const { cf, ...requestInit } = options;
-                const fetchCall = cf
-                    ? fetch(new Request(url, requestInit), { cf })
-                    : fetch(new Request(url, requestInit));
-                return Promise.race([
-                    fetchCall,
-                    new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Timeout')), TIMEOUT)
-                    ),
-                ]);
+                return fetchPublicNetworkUrl(url, options, {
+                    fetcher: env.PUBLIC_FETCH,
+                    timeoutMs: TIMEOUT,
+                });
             };
 
             const [trafficResult, nodeCountResult] = await Promise.allSettled([

@@ -2,31 +2,42 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { openStorage } from './storage.mjs';
 import { createNativeServer } from './server.mjs';
-import { onRequest } from './build/backend.mjs';
+import { onRequest, initializeSessionCredentials } from './build/backend.mjs';
+import { createPublicFetch } from './build/public-fetch.mjs';
+import { localProxyAddresses } from './client-address.mjs';
 
 process.umask(0o077);
 const root = path.resolve(import.meta.dirname, '../..');
 const publicUrl = process.env.MISUB_PUBLIC_URL;
-if (!publicUrl || !process.env.ADMIN_PASSWORD || !process.env.COOKIE_SECRET) {
+if (
+    !publicUrl?.trim() ||
+    !process.env.ADMIN_PASSWORD?.trim() ||
+    !process.env.COOKIE_SECRET?.trim()
+) {
     throw new Error('MISUB_PUBLIC_URL, ADMIN_PASSWORD and COOKIE_SECRET are required');
 }
 const port = Number(process.env.PORT || 8787);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
 const schema = await readFile(path.join(root, 'schema.sql'), 'utf8');
 const storage = await openStorage(process.env.MISUB_DATA_DIR || '/data', schema);
+const bindings = {
+    MISUB_KV: storage.kv,
+    MISUB_DB: storage.d1,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    COOKIE_SECRET: process.env.COOKIE_SECRET,
+    MISUB_PUBLIC_URL: publicUrl,
+    CORS_ORIGINS: new URL(publicUrl).origin,
+    ENABLE_AUTH_DIAGNOSTICS: 'false',
+    PUBLIC_FETCH: createPublicFetch(),
+};
+await initializeSessionCredentials(bindings);
 const app = await createNativeServer({
     onRequest,
     publicUrl,
     assetsDirectory: path.join(root, 'dist'),
-    env: {
-        MISUB_KV: storage.kv,
-        MISUB_DB: storage.d1,
-        ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
-        COOKIE_SECRET: process.env.COOKIE_SECRET,
-        MISUB_PUBLIC_URL: publicUrl,
-        CORS_ORIGINS: new URL(publicUrl).origin,
-        ENABLE_AUTH_DIAGNOSTICS: 'false',
-    },
+    trustProxy: process.env.MISUB_TRUST_PROXY === 'true',
+    proxyAddresses: await localProxyAddresses(),
+    env: bindings,
 });
 
 let stopping = false;

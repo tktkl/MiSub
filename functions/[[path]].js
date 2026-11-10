@@ -34,6 +34,7 @@ import { StorageFactory, SettingsCache } from './storage-adapter.js';
 import { KV_KEY_SETTINGS, DEFAULT_SETTINGS as defaultSettings } from './modules/config.js';
 import { handleCronTrigger } from './modules/notifications.js';
 import { authMiddleware, renewAuthSession } from './modules/auth-middleware.js';
+export { initializeSessionCredentials } from './modules/auth-middleware.js';
 
 function parseCorsOrigins(env, requestUrl) {
     const configured = (env?.CORS_ORIGINS || '')

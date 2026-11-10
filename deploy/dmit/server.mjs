@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { clientAddress } from './client-address.mjs';
 import { createAssets } from './assets.mjs';
 
 const MAX_BODY_BYTES = 20 * 1024 * 1024;
@@ -51,7 +52,14 @@ function requestBody(incoming) {
     });
 }
 
-export async function createNativeServer({ onRequest, env, publicUrl, assetsDirectory }) {
+export async function createNativeServer({
+    onRequest,
+    env,
+    publicUrl,
+    assetsDirectory,
+    trustProxy = false,
+    proxyAddresses,
+}) {
     const origin = new URL(publicUrl);
     if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password) {
         throw new Error('MISUB_PUBLIC_URL must be an HTTP(S) URL without credentials');
@@ -112,6 +120,7 @@ export async function createNativeServer({ onRequest, env, publicUrl, assetsDire
             const response = await onRequest({
                 request,
                 env: bindings,
+                clientIp: clientAddress(incoming, { trustProxy, proxyAddresses }),
                 waitUntil(promise) {
                     const task = Promise.resolve(promise)
                         .catch((error) => console.error('[Background task]', error))

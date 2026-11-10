@@ -71,7 +71,7 @@ test('health checks bypass handlers; HTTP bridge streams bodies, cookies and can
     assert.equal(await cookies.text(), publicUrl + '/cookies');
 });
 
-test('native backend preserves migrated sessions, CRUD, subscription output and assets across restart', async (t) => {
+test('native backend rejects legacy sessions and preserves current sessions, CRUD, subscriptions and assets across restart', async (t) => {
     const f = await fixture(t);
     const secret = 'test-persistent-cookie-secret';
     const password = 'test-admin-password';
@@ -161,7 +161,7 @@ test('native backend preserves migrated sessions, CRUD, subscription output and 
         timestamp +
         '.' +
         createHmac('sha256', secret).update(timestamp).digest('hex');
-    assert.equal((await api('/api/data', oldCookie)).data.misubs.length, 2);
+    assert.equal((await api('/api/data', oldCookie)).data.authenticated, false);
     const login = await api('/api/login', '', { password });
     assert.equal(login.data.success, true);
     const setCookie = login.response.headers.getSetCookie()[0];
@@ -219,7 +219,7 @@ test('native backend preserves migrated sessions, CRUD, subscription output and 
     await app.close();
     storage.close();
     await start();
-    const restarted = (await api('/api/data', oldCookie)).data;
+    const restarted = (await api('/api/data', cookie)).data;
     assert.equal(restarted.misubs[0].name, 'Saved native name');
     assert.equal(restarted.config.FileName, 'Native persisted');
 });

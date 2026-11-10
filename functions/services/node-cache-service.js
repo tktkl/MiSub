@@ -51,7 +51,8 @@ export function isLikelyPartialAggregateNodeList(nodes) {
  * @returns {string} 缓存键
  */
 export function generateCacheKey(type, identifier) {
-    return `${CACHE_CONFIG.KEY_PREFIX}${type}_${identifier}`;
+    const version = type === 'profile' || type === 'token' ? 'v2_' : '';
+    return `${CACHE_CONFIG.KEY_PREFIX}${type}_${version}${identifier}`;
 }
 
 function isSubscriptionNodeCacheKey(key) {

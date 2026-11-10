@@ -11,7 +11,7 @@ import {
 } from '../../functions/modules/handlers/debug-handler.js';
 import {
     handleLogin,
-    createSignedToken,
+    createSessionToken,
     getAuthSessionDiagnostic,
     renewAuthSession,
 } from '../../functions/modules/auth-middleware.js';
@@ -144,7 +144,7 @@ describe('security hardening', () => {
     it('keeps browser login sessions valid for thirty days', async () => {
         const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
         const issuedAt = Date.now() - (29 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000);
-        const token = await createSignedToken(env.COOKIE_SECRET, String(issuedAt));
+        const token = await createSessionToken(env, issuedAt);
         const diagnostic = await getAuthSessionDiagnostic(
             {
                 headers: {
@@ -162,7 +162,7 @@ describe('security hardening', () => {
     it('marks browser login sessions expired after thirty days', async () => {
         const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
         const issuedAt = Date.now() - (30 * 24 * 60 * 60 * 1000 + 1000);
-        const token = await createSignedToken(env.COOKIE_SECRET, String(issuedAt));
+        const token = await createSessionToken(env, issuedAt);
         const diagnostic = await getAuthSessionDiagnostic(
             {
                 headers: {
@@ -178,13 +178,13 @@ describe('security hardening', () => {
 
     it('marks sessions for renewal after seven days without renewing earlier sessions', async () => {
         const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
-        const recentToken = await createSignedToken(
-            env.COOKIE_SECRET,
-            String(Date.now() - SESSION_RENEW_THRESHOLD + 1000)
+        const recentToken = await createSessionToken(
+            env,
+            Date.now() - SESSION_RENEW_THRESHOLD + 1000
         );
-        const matureToken = await createSignedToken(
-            env.COOKIE_SECRET,
-            String(Date.now() - SESSION_RENEW_THRESHOLD - 1000)
+        const matureToken = await createSessionToken(
+            env,
+            Date.now() - SESSION_RENEW_THRESHOLD - 1000
         );
 
         const recent = await getAuthSessionDiagnostic(
@@ -213,7 +213,7 @@ describe('security hardening', () => {
     it('renews mature sessions with a fresh thirty-day cookie', async () => {
         const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
         const issuedAt = Date.now() - SESSION_RENEW_THRESHOLD - 1000;
-        const token = await createSignedToken(env.COOKIE_SECRET, String(issuedAt));
+        const token = await createSessionToken(env, issuedAt);
         const request = {
             url: 'https://example.com/api/data',
             headers: {
@@ -231,17 +231,14 @@ describe('security hardening', () => {
         expect(setCookie).toContain('Secure;');
 
         const renewedToken = setCookie.split(';')[0].slice('auth_session='.length);
-        const renewedTimestamp = Number(renewedToken.split('.')[0]);
+        const renewedTimestamp = Number(renewedToken.split('.')[0].slice(3));
         expect(renewedTimestamp).toBeGreaterThan(issuedAt);
     });
 
     it('does not renew sessions before the threshold or after expiry', async () => {
         const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
-        const recentToken = await createSignedToken(env.COOKIE_SECRET, String(Date.now() - 1000));
-        const expiredToken = await createSignedToken(
-            env.COOKIE_SECRET,
-            String(Date.now() - SESSION_DURATION - 1000)
-        );
+        const recentToken = await createSessionToken(env, Date.now() - 1000);
+        const expiredToken = await createSessionToken(env, Date.now() - SESSION_DURATION - 1000);
 
         const recentResponse = await renewAuthSession(
             {

@@ -100,8 +100,9 @@ async function ensureD1Schema(d1Db) {
  * KV 存储适配器
  */
 class KVStorageAdapter {
-    constructor(kvNamespace) {
+    constructor(kvNamespace, env = null) {
         this.kv = kvNamespace;
+        this.env = env;
         this.type = STORAGE_TYPES.KV;
     }
 
@@ -240,8 +241,9 @@ class KVStorageAdapter {
  * D1 存储适配器
  */
 class D1StorageAdapter {
-    constructor(d1Database) {
+    constructor(d1Database, env = null) {
         this.db = d1Database;
+        this.env = env;
         this.type = STORAGE_TYPES.D1;
     }
 
@@ -807,9 +809,9 @@ export class StorageFactory {
                         console.warn('[Storage] KV not available either, using noop adapter');
                         return new NoopStorageAdapter();
                     }
-                    return new KVStorageAdapter(kvFallback);
+                    return new KVStorageAdapter(kvFallback, env);
                 }
-                return new D1StorageAdapter(env.MISUB_DB);
+                return new D1StorageAdapter(env.MISUB_DB, env);
 
             case STORAGE_TYPES.KV:
             default: {
@@ -818,7 +820,7 @@ export class StorageFactory {
                     console.warn('[Storage] No KV binding found, using noop adapter');
                     return new NoopStorageAdapter();
                 }
-                return new KVStorageAdapter(kv);
+                return new KVStorageAdapter(kv, env);
             }
         }
     }

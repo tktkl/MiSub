@@ -29,7 +29,8 @@ export async function fetchSubscriptionNodes(
     fetchProxy = null,
     skipCertVerify = false,
     plusAsSpace = false,
-    enableNodeCache = false
+    enableNodeCache = false,
+    env = null
 ) {
     // 自动检测调试 Token
     const shouldDebug = debug || (url && url.includes('b0b422857bb46aba65da8234c84f38c6'));
@@ -57,11 +58,15 @@ export async function fetchSubscriptionNodes(
         }
 
         // 使用统一的 Fetch 工具，复用重试逻辑
-        const response = await fetchWithRetry(requestUrl, {
-            headers: { 'User-Agent': effectiveUserAgent },
-            redirect: 'follow',
-            ...(skipCertVerify ? { cf: { insecureSkipVerify: true } } : {}),
-        });
+        const response = await fetchWithRetry(
+            requestUrl,
+            {
+                headers: { 'User-Agent': effectiveUserAgent },
+                redirect: 'follow',
+                ...(skipCertVerify ? { cf: { insecureSkipVerify: true } } : {}),
+            },
+            { fetcher: env?.PUBLIC_FETCH }
+        );
 
         if (!response.ok) {
             return {

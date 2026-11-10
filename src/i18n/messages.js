@@ -1319,6 +1319,8 @@ export const messages = {
             exportBackup: '导出备份',
             importBackup: '导入备份',
             adminSecurityTitle: '管理员安全设置',
+            revokeSessions: '退出所有设备',
+            revokeSessionsHint: '立即使所有后台登录失效，包括当前浏览器。订阅链接继续有效。',
             adminSecurityDesc: '统一管理后台登录密码，建议定期更新并避免使用弱密码。',
             newPassword: '新密码',
             newPasswordPlaceholder: '请输入新密码',
@@ -3213,6 +3215,9 @@ export const messages = {
             exportBackup: 'Export backup',
             importBackup: 'Import backup',
             adminSecurityTitle: 'Administrator security settings',
+            revokeSessions: 'Sign out all devices',
+            revokeSessionsHint:
+                'Revoke all admin sessions, including this browser. Subscription links remain valid.',
             adminSecurityDesc:
                 'Manage the admin login password. Update it regularly and avoid weak passwords.',
             newPassword: 'New password',

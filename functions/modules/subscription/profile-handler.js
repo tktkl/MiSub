@@ -155,11 +155,15 @@ export async function handleProfileMode(
         });
     }
 
-    const targetSubscriptions = targetMisubs.filter((sub) => !/^https?:\/\/[^/?#]+:\d+(?:[/?#]|$)/i.test(sub.url));
+    const targetSubscriptions = targetMisubs.filter(
+        (sub) => !/^https?:\/\/[^/?#]+:\d+(?:[/?#]|$)/i.test(sub.url)
+    );
     const manualNodes = Array.from(
         new Map(
-            [...targetManualNodes, ...targetMisubs.filter((sub) => !targetSubscriptions.includes(sub))]
-                .map((node) => [node.id, node])
+            [
+                ...targetManualNodes,
+                ...targetMisubs.filter((sub) => !targetSubscriptions.includes(sub)),
+            ].map((node) => [node.id, node])
         ).values()
     );
     // 处理手工节点（直接解析节点URL），并将用户自定义名称写入 URL。
@@ -199,7 +203,8 @@ export async function handleProfileMode(
                 sub.fetchProxy,
                 skipCertVerify,
                 Boolean(sub?.plusAsSpace),
-                sub?.enableNodeCache === true
+                sub?.enableNodeCache === true,
+                env
             )
         )
     );

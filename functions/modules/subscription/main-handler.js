@@ -50,6 +50,7 @@ import {
 } from './template-pipeline.js';
 import { getBuiltinTemplate } from './builtin-template-registry.js';
 import { assertPublicNetworkUrl } from '../security-utils.js';
+import { applyRequestTransforms, parseRequestTransforms } from './request-transforms.js';
 
 function maskSensitiveLogValue(value) {
     const text = String(value ?? '');
@@ -569,10 +570,12 @@ export async function handleMisubRequest(context) {
     context.accessLogPersistenceMode = config.accessLogPersistenceMode || 'light';
 
     // [Subconverter API] 提取 URL 控制参数，用于覆盖默认设置
-    const urlInclude = url.searchParams.get('include');
-    const urlExclude = url.searchParams.get('exclude');
-    const urlRename = url.searchParams.get('rename');
-    const urlEmoji = url.searchParams.get('emoji'); // true/false
+    let requestTransforms;
+    try {
+        requestTransforms = parseRequestTransforms(url.searchParams);
+    } catch (error) {
+        return new Response(error.message, { status: error.status || 400 });
+    }
     const urlUdp = url.searchParams.get('udp'); // true/false
     const urlTfo = url.searchParams.get('tfo'); // true/false
     const urlScv = url.searchParams.get('scv'); // true/false (skip-cert-verify)
@@ -947,45 +950,11 @@ export async function handleMisubRequest(context) {
             nodeTransform: { ...effectiveNodeTransform },
             name: subName,
             operators: Array.isArray(activeProfile?.operators) ? [...activeProfile.operators] : [],
-            exclude: urlExclude || activeProfile?.exclude,
-            include: urlInclude || activeProfile?.include,
+            exclude: activeProfile?.exclude,
+            include: activeProfile?.include,
             // [Issue #345] 透传 emoji 开关到内置生成器
             addFlagEmoji: effectiveNodeTransform.addFlagEmoji,
         };
-
-        // [Subconverter API] 动态注入更名算子 (rename=old@new|A@B)
-        if (urlRename) {
-            const renameGroups = urlRename.split('|');
-            renameGroups.forEach((group) => {
-                const [regex, replace] = group.split('@');
-                if (regex) {
-                    generationSettings.operators.push({
-                        type: 'rename',
-                        enabled: true,
-                        params: {
-                            regex: {
-                                enabled: true,
-                                rules: [
-                                    {
-                                        pattern: regex,
-                                        replacement: replace || '',
-                                        flags: 'gi',
-                                    },
-                                ],
-                            },
-                        },
-                    });
-                }
-            });
-        }
-
-        // [Subconverter API] 控制 Emoji 注入
-        if (urlEmoji === 'false') {
-            generationSettings.nodeTransform.addFlagEmoji = false;
-            generationSettings.nodeTransform.removeFlagEmoji = true;
-        } else if (urlEmoji === 'true') {
-            generationSettings.nodeTransform.addFlagEmoji = true;
-        }
 
         const freshNodes = await generateCombinedNodeList(
             context, // 传入完整 context
@@ -1048,7 +1017,7 @@ export async function handleMisubRequest(context) {
             (sub) => sub?.enabled && typeof sub?.url === 'string' && !sub.url.startsWith('http')
         ).length;
 
-    const { combinedNodeList, cacheHeaders } = await resolveNodeListWithCache({
+    const { combinedNodeList: cachedNodeList, cacheHeaders } = await resolveNodeListWithCache({
         storageAdapter,
         cacheKey,
         forceRefresh,
@@ -1057,6 +1026,12 @@ export async function handleMisubRequest(context) {
         targetMisubsCount: targetMisubs.length,
         expectedNodeCount: expectedRemoteNodeCount,
     });
+    const combinedNodeList = applyRequestTransforms(cachedNodeList, requestTransforms);
+    if (requestTransforms) {
+        cacheHeaders['X-Node-Count'] = String(
+            combinedNodeList.split('\n').filter((line) => line.trim()).length
+        );
+    }
 
     console.log(`[MiSub Nodes] Count/Length: ${combinedNodeList ? combinedNodeList.length : 0}`);
 

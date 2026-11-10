@@ -16,8 +16,8 @@ import {
     isLocalProxyEndpoint,
 } from '../utils/node-utils.js';
 import { runOperatorChain } from '../utils/operator-runner.js';
-import { createTimeoutFetch } from '../modules/utils.js';
 import { assertPublicNetworkUrl } from '../modules/security-utils.js';
+import { fetchPublicNetworkUrl } from '../modules/public-network.js';
 import { isSuspiciousNodeCountDrop } from './node-cache-service.js';
 
 /**
@@ -278,16 +278,20 @@ export async function fetchAirportSiteTitle(rootDomain, options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-        const response = await fetch(`https://${domain}/`, {
-            method: 'GET',
-            headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-                Accept: 'text/html,application/xhtml+xml',
+        const response = await fetchPublicNetworkUrl(
+            `https://${domain}/`,
+            {
+                method: 'GET',
+                headers: {
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+                    Accept: 'text/html,application/xhtml+xml',
+                },
+                redirect: 'follow',
+                signal: controller.signal,
             },
-            redirect: 'follow',
-            signal: controller.signal,
-        });
+            { fetcher: options.fetcher, timeoutMs: timeout, maxBytes: 512 * 1024 }
+        );
         if (!response.ok) return '';
 
         // 只读前 64KB，标题一定在 <head> 里
@@ -477,7 +481,10 @@ async function fetchWithRetry(url, init = {}, options = {}) {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            const response = await createTimeoutFetch(url, init, timeout);
+            const response = await fetchPublicNetworkUrl(url, init, {
+                timeoutMs: timeout,
+                fetcher: options.fetcher,
+            });
 
             // 检查是否需要重试（可重试的 HTTP 状态码）
             if (!response.ok && retryableStatus.includes(response.status)) {
@@ -513,6 +520,7 @@ async function fetchWithRetry(url, init = {}, options = {}) {
             return response;
         } catch (error) {
             lastError = error;
+            if ([400, 413].includes(error.status)) throw error;
 
             if (attempt === maxRetries) {
                 throw error;
@@ -713,7 +721,11 @@ export async function generateCombinedNodeList(
     const processedManualNodeList = manualProcessedLines.join('\n');
 
     const httpSubs = misubs.filter(
-        (sub) => sub && sub.url && /^https?:\/\//i.test(sub.url) && !/^https?:\/\/[^/?#]+:\d+\/?#/i.test(sub.url)
+        (sub) =>
+            sub &&
+            sub.url &&
+            /^https?:\/\//i.test(sub.url) &&
+            !/^https?:\/\/[^/?#]+:\d+\/?#/i.test(sub.url)
     );
     const limiter = createConcurrencyLimiter(FETCH_CONFIG.CONCURRENCY);
     let upstreamSuccessCount = 0; // 追踪真正从远程拉取成功的订阅数（不含 per-sub 缓存回退）
@@ -767,19 +779,23 @@ export async function generateCombinedNodeList(
             }
             requestUrl = assertPublicNetworkUrl(requestUrl).toString();
 
-            const response = await fetchWithRetry(requestUrl, {
-                headers: requestHeaders,
-                redirect: 'follow',
-                ...(skipCertVerify
-                    ? {
-                          cf: {
-                              insecureSkipVerify: true,
-                              allowUntrusted: true,
-                              validateCertificate: false,
-                          },
-                      }
-                    : {}),
-            });
+            const response = await fetchWithRetry(
+                requestUrl,
+                {
+                    headers: requestHeaders,
+                    redirect: 'follow',
+                    ...(skipCertVerify
+                        ? {
+                              cf: {
+                                  insecureSkipVerify: true,
+                                  allowUntrusted: true,
+                                  validateCertificate: false,
+                              },
+                          }
+                        : {}),
+                },
+                { fetcher: context?.env?.PUBLIC_FETCH }
+            );
 
             if (!response.ok) {
                 recordEmptyRuntimeInfo();

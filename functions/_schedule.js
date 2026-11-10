@@ -1,3 +1,5 @@
+import { fetchPublicNetworkUrl } from './modules/public-network.js';
+
 /**
  * Cron Triggers 定时同步服务
  * 使用 Cloudflare Pages Functions 的 Cron Triggers 功能
@@ -126,12 +128,16 @@ async function syncSingleSubscription(subscription, env) {
     console.log(`[Cron Sync] Syncing subscription: ${subscription.name}`);
 
     // 使用重试机制获取订阅
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': userAgent,
+    const response = await fetchPublicNetworkUrl(
+        url,
+        {
+            headers: {
+                'User-Agent': userAgent,
+            },
+            signal: AbortSignal.timeout(timeout),
         },
-        signal: AbortSignal.timeout(timeout),
-    });
+        { fetcher: env.PUBLIC_FETCH, timeoutMs: timeout }
+    );
 
     if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

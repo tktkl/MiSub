@@ -71,6 +71,8 @@ export function validatePublicFetchUrl(value) {
     if (!ALLOWED_FETCH_PROTOCOLS.has(url.protocol)) {
         return { ok: false, error: 'Only HTTP/HTTPS URLs are allowed.' };
     }
+    if (url.username || url.password)
+        return { ok: false, error: 'URL credentials are not allowed.' };
     if (!url.hostname) {
         return { ok: false, error: 'URL host is required.' };
     }
@@ -97,7 +99,7 @@ export async function safeFetchPublicUrl(inputUrl, init = {}, options = {}) {
 
     let currentUrl = validation.url.toString();
     for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
-        const response = await fetch(
+        const response = await (options.fetcher || globalThis.fetch)(
             new Request(currentUrl, {
                 ...init,
                 redirect: 'manual',
@@ -147,6 +149,8 @@ export function validatePublicNetworkUrl(value) {
     if (!ALLOWED_FETCH_PROTOCOLS.has(url.protocol)) {
         return { ok: false, error: 'Only HTTP/HTTPS URLs are allowed.' };
     }
+    if (url.username || url.password)
+        return { ok: false, error: 'URL credentials are not allowed.' };
     if (!url.hostname) {
         return { ok: false, error: 'URL host is required.' };
     }
@@ -220,6 +224,10 @@ function isBlockedHostname(hostname) {
     return false;
 }
 
+export function isPublicIpAddress(address) {
+    return isIpLiteral(address) && !isBlockedHostname(address);
+}
+
 function parseIpv4(hostname) {
     const parts = hostname.split('.');
     if (parts.length !== 4) return null;
@@ -262,7 +270,7 @@ function isBlockedIpv6(hostname) {
     if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
     if ((first & 0xffc0) === 0x0000) return true; // ::/10 incl. compatible/unspecified/loopback family
     if (first === 0x0064 && second === 0xff9b) return true; // 64:ff9b::/96 NAT64 well-known prefix
-    if (first === 0x2001) return true; // 2001::/16 contains Teredo/docs/benchmark/special-use ranges
+    if (first === 0x2001 && (second < 0x0200 || second === 0x0db8)) return true; // protocol assignments, Teredo, benchmark, documentation
     if (first === 0x2002) return true; // 2002::/16 6to4 may embed private IPv4
     if (first === 0x3fff) return true; // 3fff::/20 documentation range (coarse block)
 

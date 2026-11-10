@@ -15,6 +15,8 @@ import { parseNodeList } from '../utils/node-parser.js';
 import { getProcessedUserAgent } from '../../utils/format-utils.js';
 import { buildFetchProxyUrl } from '../../utils/fetch-proxy-utils.js';
 import { isSuspiciousNodeCountDrop } from '../../services/node-cache-service.js';
+import { fetchPublicNetworkUrl } from '../public-network.js';
+import { createConcurrencyLimiter } from '../../services/fetch-utils.js';
 
 // 创建用于全局匹配的协议正则表达式
 const NODE_PROTOCOL_GLOBAL_REGEX = new RegExp(
@@ -125,8 +127,16 @@ export async function handleNodeCountRequest(request, env) {
 
             // cf 选项需传给 fetch() 而非 Request()：仅在用户显式启用跳过证书验证时传递
             const cfOptions = await resolveNodeCountFetchCfOptions(env);
-            const trafficRequest = fetch(new Request(requestUrl, trafficFetchOptions), cfOptions);
-            const nodeCountRequest = fetch(new Request(requestUrl, fetchOptions), cfOptions);
+            const trafficRequest = fetchPublicNetworkUrl(
+                requestUrl,
+                { ...trafficFetchOptions, ...cfOptions },
+                { fetcher: env.PUBLIC_FETCH }
+            );
+            const nodeCountRequest = fetchPublicNetworkUrl(
+                requestUrl,
+                { ...fetchOptions, ...cfOptions },
+                { fetcher: env.PUBLIC_FETCH }
+            );
 
             // 使用 Promise.allSettled 替换 Promise.all
             const responses = await Promise.allSettled([trafficRequest, nodeCountRequest]);
@@ -542,95 +552,93 @@ export async function handleBatchUpdateNodesRequest(request, env) {
         const SINGLE_SUB_TIMEOUT = 15000;
 
         // 并行获取所有订阅的节点（带超时）
-        const updatePromises = targetSubscriptions.map(async (subscription) => {
-            try {
-                const effectiveUserAgent =
-                    (typeof subscription.customUserAgent === 'string' &&
-                        subscription.customUserAgent.trim()) ||
-                    getProcessedUserAgent(userAgent, subscription.url);
-                let requestUrl = subscription.url;
-                if (
-                    subscription.fetchProxy &&
-                    typeof subscription.fetchProxy === 'string' &&
-                    subscription.fetchProxy.trim()
-                ) {
-                    requestUrl = buildFetchProxyUrl(
-                        subscription.fetchProxy,
-                        subscription.url,
-                        effectiveUserAgent
-                    );
-                }
-
-                // 使用 Promise.race 实现超时
-                const fetchPromise = fetch(
-                    new Request(requestUrl, {
-                        headers: { 'User-Agent': effectiveUserAgent },
-                        redirect: 'follow',
-                    }),
-                    { cf: { insecureSkipVerify: true } }
-                );
-
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('请求超时')), SINGLE_SUB_TIMEOUT)
-                );
-
-                const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const text = await response.text();
-
-                // 使用与预览功能相同的解码和节点统计逻辑
-                let nodeCount = 0;
+        const limitUpdate = createConcurrencyLimiter(2);
+        const updatePromises = targetSubscriptions.map((subscription) =>
+            limitUpdate(async () => {
                 try {
-                    // 使用 parseNodeList 函数，与预览功能完全一致
-                    const parsedNodes = parseNodeList(text);
-                    nodeCount = parsedNodes.length;
-                } catch (e) {
-                    // 解码失败，尝试简单统计
-                    console.error('Batch update decode error:', e);
+                    const effectiveUserAgent =
+                        (typeof subscription.customUserAgent === 'string' &&
+                            subscription.customUserAgent.trim()) ||
+                        getProcessedUserAgent(userAgent, subscription.url);
+                    let requestUrl = subscription.url;
+                    if (
+                        subscription.fetchProxy &&
+                        typeof subscription.fetchProxy === 'string' &&
+                        subscription.fetchProxy.trim()
+                    ) {
+                        requestUrl = buildFetchProxyUrl(
+                            subscription.fetchProxy,
+                            subscription.url,
+                            effectiveUserAgent
+                        );
+                    }
+
+                    const response = await fetchPublicNetworkUrl(
+                        requestUrl,
+                        {
+                            headers: { 'User-Agent': effectiveUserAgent },
+                            redirect: 'follow',
+                            cf: { insecureSkipVerify: true },
+                        },
+                        { fetcher: env.PUBLIC_FETCH, timeoutMs: SINGLE_SUB_TIMEOUT }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const text = await response.text();
+
+                    // 使用与预览功能相同的解码和节点统计逻辑
+                    let nodeCount = 0;
                     try {
-                        const cleanedText = text.replace(/\s/g, '');
-                        const base64Regex = /^[A-Za-z0-9+\/=]+$/;
-                        if (base64Regex.test(cleanedText) && cleanedText.length >= 20) {
-                            const binaryString = atob(cleanedText);
-                            const bytes = new Uint8Array(binaryString.length);
-                            for (let i = 0; i < binaryString.length; i++) {
-                                bytes[i] = binaryString.charCodeAt(i);
+                        // 使用 parseNodeList 函数，与预览功能完全一致
+                        const parsedNodes = parseNodeList(text);
+                        nodeCount = parsedNodes.length;
+                    } catch (e) {
+                        // 解码失败，尝试简单统计
+                        console.error('Batch update decode error:', e);
+                        try {
+                            const cleanedText = text.replace(/\s/g, '');
+                            const base64Regex = /^[A-Za-z0-9+\/=]+$/;
+                            if (base64Regex.test(cleanedText) && cleanedText.length >= 20) {
+                                const binaryString = atob(cleanedText);
+                                const bytes = new Uint8Array(binaryString.length);
+                                for (let i = 0; i < binaryString.length; i++) {
+                                    bytes[i] = binaryString.charCodeAt(i);
+                                }
+                                const processedText = new TextDecoder('utf-8').decode(bytes);
+                                nodeCount = (processedText.match(NODE_PROTOCOL_GLOBAL_REGEX) || [])
+                                    .length;
+                            } else {
+                                nodeCount = (text.match(NODE_PROTOCOL_GLOBAL_REGEX) || []).length;
                             }
-                            const processedText = new TextDecoder('utf-8').decode(bytes);
-                            nodeCount = (processedText.match(NODE_PROTOCOL_GLOBAL_REGEX) || [])
-                                .length;
-                        } else {
+                        } catch {
+                            // 如果都失败，使用原始文本进行统计
                             nodeCount = (text.match(NODE_PROTOCOL_GLOBAL_REGEX) || []).length;
                         }
-                    } catch {
-                        // 如果都失败，使用原始文本进行统计
-                        nodeCount = (text.match(NODE_PROTOCOL_GLOBAL_REGEX) || []).length;
                     }
-                }
 
-                return {
-                    subscriptionId: subscription.id,
-                    subscriptionName: subscription.name,
-                    success: true,
-                    nodeCount,
-                    error: null,
-                    lastUpdated: new Date().toISOString(),
-                };
-            } catch (e) {
-                return {
-                    subscriptionId: subscription.id,
-                    subscriptionName: subscription.name,
-                    success: false,
-                    nodeCount: 0,
-                    error: e.message,
-                    lastUpdated: new Date().toISOString(),
-                };
-            }
-        });
+                    return {
+                        subscriptionId: subscription.id,
+                        subscriptionName: subscription.name,
+                        success: true,
+                        nodeCount,
+                        error: null,
+                        lastUpdated: new Date().toISOString(),
+                    };
+                } catch (e) {
+                    return {
+                        subscriptionId: subscription.id,
+                        subscriptionName: subscription.name,
+                        success: false,
+                        nodeCount: 0,
+                        error: e.message,
+                        lastUpdated: new Date().toISOString(),
+                    };
+                }
+            })
+        );
 
         // 等待所有更新完成
         const results = await Promise.all(updatePromises);

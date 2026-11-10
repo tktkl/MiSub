@@ -28,9 +28,7 @@ describe('auth gracefully handles exhausted KV write quota', () => {
 
         try {
             await expect(getCookieSecret(env)).resolves.toBe('stable-cookie-secret');
-            expect(warnSpy).toHaveBeenCalledWith(
-                '[Auth Storage] KV put skipped for SYSTEM_COOKIE_SECRET: KV put() limit exceeded for the day.'
-            );
+            expect(warnSpy).not.toHaveBeenCalled();
         } finally {
             warnSpy.mockRestore();
         }
@@ -55,9 +53,7 @@ describe('auth gracefully handles exhausted KV write quota', () => {
 
             expect(response.status).toBe(200);
             expect(body).toEqual({ success: true });
-            expect(warnSpy).toHaveBeenCalledWith(
-                '[Auth Storage] KV put skipped for SYSTEM_COOKIE_SECRET: KV put() limit exceeded for the day.'
-            );
+            expect(warnSpy).not.toHaveBeenCalled();
         } finally {
             warnSpy.mockRestore();
         }
