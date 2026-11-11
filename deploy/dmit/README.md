@@ -1,5 +1,7 @@
 # DMIT 本机部署
 
+2026-11-11 起，生产 MiSub 后端迁至 bero 的 `/srv/misub`，DMIT 保留原域名与 Nginx 入口，经校验证书的 HTTPS 转发至 bero。当前部署、目录和回退方式见 [bero 部署说明](../bero/README.md)。本文保留同机部署模板及历史迁移说明。
+
 本 fork 基于 MiSub main `4952c16fef2423b2881c8aeecc63647526f42bda`（2.7.0），开发分支为 `dev/node-flags-probe-copy`。
 
 VPS 部署运行原生 Node.js HTTP 服务，使用 Node 内置 SQLite 和 TCP 接口。生产镜像不包含 node_modules、Miniflare 或 workerd，也不需要 Cloudflare 账号、运行时或云端存储。构建时将现有业务处理函数打包为 Node.js 模块；Cloudflare Pages 原有的部署方式仍可独立使用。
